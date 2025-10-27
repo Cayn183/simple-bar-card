@@ -1,4 +1,4 @@
-class MyBarCard extends HTMLElement {
+class SimpleBarCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -25,7 +25,22 @@ class MyBarCard extends HTMLElement {
       return;
     }
     
-    // Hier kommt später das Styling & Render-Logik rein
+    const style = `
+      <style>
+        .container {
+          padding: 10px;
+          font-family: sans-serif;
+        }
+      </style>
+    `;
+
+    this.shadowRoot.innerHTML = `
+      ${style}
+      <div class="container">
+        Entity: ${entityId}<br>
+        State: ${stateObj.state}
+      </div>
+    `;
   }
 
   getCardSize() {
@@ -33,4 +48,4 @@ class MyBarCard extends HTMLElement {
   }
 }
 
-customElements.define('my-bar-card', MyBarCard);
+customElements.define('simple-bar-card', SimpleBarCard);
