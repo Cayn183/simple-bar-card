@@ -51,6 +51,7 @@ class SimpleBarCard extends HTMLElement {
 
     // Styles + Template einfügen
     this._renderCard(displayName, percent, formattedValueWithUnit);
+
   }
 
   /***************************
@@ -79,6 +80,14 @@ class SimpleBarCard extends HTMLElement {
   }
 
   _renderCard(displayName, percent, formattedValueWithUnit) {
+    const containerStyles = `
+      --card-background-color: ${this._config.card_background_color || '#fff'};
+      --card-border-color: ${this._config.card_border_color || '#ccc'};
+      --card-border-radius: ${this._config.card_border_radius || '12px'};
+      --bar-background-color: ${this._config.bar_background_color || '#ddd'};
+      --bar-fill-color: ${this._config.bar_fill_color || '#3b82f6'};
+      `;
+      
     const style = `
       <style>
         .container {
@@ -86,6 +95,9 @@ class SimpleBarCard extends HTMLElement {
           width: 100%;
           padding: 8px;
           box-sizing: border-box;
+          background-color: var(--card-background-color);
+          border: 1px solid var(--card-border-color);
+          border-radius: var(--card-border-radius);
         }
         .label {
           margin-bottom: 6px;
@@ -98,7 +110,7 @@ class SimpleBarCard extends HTMLElement {
         .bar-background {
           flex-grow: 1;
           height: 24px;
-          background-color: #ddd;
+          background-color: var(--bar-background-color);
           border-radius: 12px;
           overflow: hidden;
           margin-right: 12px;
@@ -106,7 +118,7 @@ class SimpleBarCard extends HTMLElement {
         .bar-fill {
           height: 100%;
           width: ${percent}%;
-          background-color: var(--bar-fill-color, #3b82f6);
+          background-color: var(--bar-fill-color);
           border-radius: 12px 0 0 12px;
           transition: width 0.3s ease;
         }
@@ -122,7 +134,7 @@ class SimpleBarCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       ${style}
-      <div class="container">
+      <div class="container" style="${containerStyles}">
         <div class="label">${displayName}</div>
         <div class="bar-row">
           <div class="bar-background">
