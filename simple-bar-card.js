@@ -103,7 +103,7 @@ class SimpleBarCard extends HTMLElement {
           <div class="bar-background">
             <div class="bar-fill"></div>
           </div>
-          <div class="value">${formattedValue}${unit}</div>
+          <div class="value">${formattedValue} ${unit}</div>
         </div>
       </div>
     `;
