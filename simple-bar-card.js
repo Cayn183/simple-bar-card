@@ -32,6 +32,9 @@ class SimpleBarCard extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
 
+    const min = Number(this._config.min);
+    const max = Number(this._config.max);
+
     const stateObj = this._hass.states[this._config.entity];
     if (!stateObj) {
       this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
@@ -63,7 +66,7 @@ class SimpleBarCard extends HTMLElement {
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
 
     // Styles + Template einfügen
-    this._renderCard(displayName, percent, formattedValueWithUnit);
+    this._renderCard(displayName, percent, formattedValueWithUnit, fillColor);
 
   }
 
