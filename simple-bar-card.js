@@ -4,13 +4,10 @@ class SimpleBarCard extends HTMLElement {
     this.attachShadow({ mode: 'open' });
   }
 
-  set hass(hass) {
-    this._hass = hass;
-    this._render();
-  }
-
+  /***************************
+   * Konfigurations-Handler
+   ***************************/
   setConfig(config) {
-    // Erwartet: entity, min (optional), max (optional)
     if (!config.entity) {
       throw new Error("Entity muss angegeben werden!");
     }
@@ -21,39 +18,67 @@ class SimpleBarCard extends HTMLElement {
     };
   }
 
+  /***************************
+   * Home Assistant Update
+   ***************************/
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  /***************************
+   * Haupt-Render-Methode
+   ***************************/
   _render() {
     if (!this._config || !this._hass) return;
 
-    const entityId = this._config.entity;
-    const stateObj = this._hass.states[entityId];
-    const displayName = this._config.name || (stateObj.attributes.friendly_name) || entityId;
-
+    const stateObj = this._hass.states[this._config.entity];
     if (!stateObj) {
-      this.shadowRoot.innerHTML = `<div>Entity nicht gefunden: ${entityId}</div>`;
+      this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
       return;
     }
 
-    // Wert als Zahl extrahieren
     const rawValue = Number(stateObj.state);
     if (isNaN(rawValue)) {
-      this.shadowRoot.innerHTML = `<div>Ungültiger Wert: ${stateObj.state}</div>`;
+      this._renderError(`Ungültiger Wert: ${stateObj.state}`);
       return;
     }
 
-    // Wertebereich aus Config (default 0-100)
+    // Werte normalisieren und formatieren
+    const percent = this._calculatePercent(rawValue);
+    const displayName = this._calculateDisplayName(stateObj);
+    const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
+
+    // Styles + Template einfügen
+    this._renderCard(displayName, percent, formattedValueWithUnit);
+  }
+
+  /***************************
+   * Hilfsmethoden
+   ***************************/
+  _renderError(message) {
+    this.shadowRoot.innerHTML = `<div>${message}</div>`;
+  }
+
+  _calculatePercent(value) {
     const min = Number(this._config.min);
     const max = Number(this._config.max);
+    let percent = ((value - min) / (max - min)) * 100;
+    return Math.min(Math.max(percent, 0), 100);
+  }
 
-    // Wert formatieren
+  _calculateDisplayName(stateObj) {
+    return this._config.name || stateObj.attributes.friendly_name || this._config.entity;
+  }
+
+  _formatValue(value, stateObj) {
     const decimals = ('decimals' in this._config) ? Number(this._config.decimals) : 0;
-    const unit = this._config.unit ? this._config.unit : stateObj.attributes.unit_of_measurement || '';
+    const unit = this._config.unit || stateObj.attributes.unit_of_measurement || '';
+    const formattedValue = value.toFixed(decimals);
+    return unit ? `${formattedValue} ${unit}` : formattedValue;
+  }
 
-    const formattedValue = rawValue.toFixed(decimals);
-
-    // Wert auf 0-100% normalisieren
-    let percent = ((rawValue - min) / (max - min)) * 100;
-    percent = Math.min(Math.max(percent, 0), 100); // Clamp zwischen 0-100
-    
+  _renderCard(displayName, percent, formattedValueWithUnit) {
     const style = `
       <style>
         .container {
@@ -103,7 +128,7 @@ class SimpleBarCard extends HTMLElement {
           <div class="bar-background">
             <div class="bar-fill"></div>
           </div>
-          <div class="value">${formattedValue} ${unit}</div>
+          <div class="value">${formattedValueWithUnit}</div>
         </div>
       </div>
     `;
