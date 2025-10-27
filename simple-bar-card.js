@@ -43,6 +43,12 @@ class SimpleBarCard extends HTMLElement {
     const min = Number(this._config.min);
     const max = Number(this._config.max);
 
+    // Wert formatieren
+    const decimals = ('decimals' in this._config) ? Number(this._config.decimals) : 0;
+    const unit = this._config.unit ? this._config.unit : stateObj.attributes.unit_of_measurement || '';
+
+    const formattedValue = rawValue.toFixed(decimals);
+
     // Wert auf 0-100% normalisieren
     let percent = ((rawValue - min) / (max - min)) * 100;
     percent = Math.min(Math.max(percent, 0), 100); // Clamp zwischen 0-100
@@ -60,12 +66,17 @@ class SimpleBarCard extends HTMLElement {
           margin-bottom: 6px;
           font-weight: 600;
         }
+        .bar-row {
+          display: flex;
+          align-items: center;
+        }
         .bar-background {
-          width: 100%;
+          flex-grow: 1;
           height: 24px;
           background-color: #ddd;
           border-radius: 12px;
           overflow: hidden;
+          margin-right: 12px;
         }
         .bar-fill {
           height: 100%;
@@ -75,10 +86,11 @@ class SimpleBarCard extends HTMLElement {
           transition: width 0.3s ease;
         }
         .value {
-          margin-top: 6px;
+          min-width: 50px;
           font-size: 14px;
-          text-align: right;
           color: #444;
+          text-align: right;
+          white-space: nowrap;
         }
       </style>
     `;
@@ -87,10 +99,12 @@ class SimpleBarCard extends HTMLElement {
       ${style}
       <div class="container">
         <div class="label">${entityId}</div>
-        <div class="bar-background">
-          <div class="bar-fill"></div>
+        <div class="bar-row">
+          <div class="bar-background">
+            <div class="bar-fill"></div>
+          </div>
+          <div class="value">${formattedValue}${unit}</div>
         </div>
-        <div class="value">${rawValue}</div>
       </div>
     `;
   }
