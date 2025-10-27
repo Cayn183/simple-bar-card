@@ -26,6 +26,7 @@ class SimpleBarCard extends HTMLElement {
 
     const entityId = this._config.entity;
     const stateObj = this._hass.states[entityId];
+    const displayName = this._config.name || (stateObj.attributes.friendly_name) || entityId;
 
     if (!stateObj) {
       this.shadowRoot.innerHTML = `<div>Entity nicht gefunden: ${entityId}</div>`;
@@ -58,7 +59,6 @@ class SimpleBarCard extends HTMLElement {
         .container {
           font-family: sans-serif;
           width: 100%;
-          max-width: 300px;
           padding: 8px;
           box-sizing: border-box;
         }
@@ -98,7 +98,7 @@ class SimpleBarCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       ${style}
       <div class="container">
-        <div class="label">${entityId}</div>
+        <div class="label">${displayName}</div>
         <div class="bar-row">
           <div class="bar-background">
             <div class="bar-fill"></div>
