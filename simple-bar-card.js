@@ -45,7 +45,7 @@ class SimpleBarCard extends HTMLElement {
     // Styles + Template einfügen
     const fillColor = this._getColorForValue(rawValue);
     const fillColorSafe = fillColor || (this._config.bar_fill_color || '#3b82f6');
-    this._renderCard(displayName, percent, formattedValueWithUnit);
+    this._renderCard(displayName, percent, formattedValueWithUnit, fillColorSafe);
     
   }
   /***************************
