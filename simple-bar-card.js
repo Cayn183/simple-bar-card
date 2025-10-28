@@ -47,18 +47,8 @@ class SimpleBarCard extends HTMLElement {
       return;
     }
 
-    // Definierte Min- und Max-Farben in der Config oder fallback auf grün/rot
-    const minColorHex = this._config.min_color || '#2ECC71';  // grün
-    const maxColorHex = this._config.max_color || '#E74C3C';  // rot
-
-    const rgbMin = this._hexToRgb(minColorHex);
-    const rgbMax = this._hexToRgb(maxColorHex);
-
-    // t = normierter Wert zwischen 0 und 1 im Bereich min..max
-    const t = Math.min(Math.max((rawValue - min) / (max - min), 0), 1);
-
-    // interpolierte Farbe berechnen
-    const fillColor = this._interpolateColor(rgbMin, rgbMax, t);
+    // Farbskala
+    const fillColor = this._getColorForValue(rawValue);
 
     // Werte normalisieren und formatieren
     const percent = this._calculatePercent(rawValue);
@@ -84,23 +74,22 @@ class SimpleBarCard extends HTMLElement {
     return Math.min(Math.max(percent, 0), 100);
   }
 
-  // Hex-Farbwert in RGB-Array umwandeln
-_hexToRgb(hex) {
-  const normalizedHex = hex.replace('#', '');
-  const bigint = parseInt(normalizedHex, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return [r, g, b];
-}
+  _getColorForValue(value) {
+    const thresholds = this._config.color_thresholds;
+    if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
+      return this._config.bar_fill_color || '#3b82f6'; // Default-Farbe
+    }
 
-// Interpolation zwischen zwei RGB Farben, t in [0,1]
-_interpolateColor(color1, color2, t) {
-  const r = Math.round(color1[0] + (color2[0] - color1[0]) * t);
-  const g = Math.round(color1[1] + (color2[1] - color1[1]) * t);
-  const b = Math.round(color1[2] + (color2[2] - color1[2]) * t);
-  return `rgb(${r}, ${g}, ${b})`;
-}
+    // thresholds müssen aufsteigend nach value sortiert sein
+    for (let i = 0; i < thresholds.length; i++) {
+      if (value <= thresholds[i].value) {
+        return thresholds[i].color;
+      }
+    }
+    // Wenn größer als alle Werte => letzte Farbe nehmen
+    return thresholds[thresholds.length - 1].color;
+  }
+
   _calculateDisplayName(stateObj) {
     return this._config.name || stateObj.attributes.friendly_name || this._config.entity;
   }
@@ -126,7 +115,7 @@ _interpolateColor(color1, color2, t) {
         .container {
           font-family: sans-serif;
           width: 100%;
-          padding: 8px;
+          padding: 12px;
           box-sizing: border-box;
           background-color: var(--card-background-color);
           border: 1px solid var(--card-border-color);
