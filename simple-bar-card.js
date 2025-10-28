@@ -44,6 +44,7 @@ class SimpleBarCard extends HTMLElement {
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
     // Styles + Template einfügen
     const fillColor = this._getColorForValue(rawValue);
+    const fillColorSafe = fillColor || (this._config.bar_fill_color || '#3b82f6');
     this._renderCard(displayName, percent, formattedValueWithUnit);
     
   }
@@ -93,7 +94,7 @@ class SimpleBarCard extends HTMLElement {
       --card-border-radius: ${this._config.card_border_radius || '12px'};
       --bar-background-color: ${this._config.bar_background_color || '#ddd'};
       --bar-fill-color: ${fillColor};
-      `;
+      `.replace(/\s+/g, ' ').trim();
       
     const style = `
       <style>
