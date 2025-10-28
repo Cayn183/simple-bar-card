@@ -43,8 +43,9 @@ class SimpleBarCard extends HTMLElement {
     const displayName = this._calculateDisplayName(stateObj);
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
     // Styles + Template einfügen
-    this._renderCard(displayName, percent, formattedValueWithUnit);
     const fillColor = this._getColorForValue(rawValue);
+    this._renderCard(displayName, percent, formattedValueWithUnit);
+    
   }
   /***************************
    * Hilfsmethoden
