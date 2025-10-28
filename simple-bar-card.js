@@ -27,25 +27,29 @@ class SimpleBarCard extends HTMLElement {
    * Haupt-Render-Methode
    ***************************/
   _render() {
+    
     if (!this._config || !this._hass) return;
     const stateObj = this._hass.states[this._config.entity];
+    
     if (!stateObj) {
       this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
       return;
     }
+    
     const rawValue = Number(stateObj.state);
     if (isNaN(rawValue)) {
       this._renderError(`Ungültiger Wert: ${stateObj.state}`);
       return;
     }
+    
     // Werte normalisieren und formatieren
     const percent = this._calculatePercent(rawValue);
     const displayName = this._calculateDisplayName(stateObj);
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
+    
     // Styles + Template einfügen
-    const fillColor = this._getColorForValue(rawValue);
-    const fillColorSafe = fillColor || (this._config.bar_fill_color || '#3b82f6');
-    this._renderCard(displayName, percent, formattedValueWithUnit, fillColorSafe);
+    const fillColor = this._getColorForValue(rawValue) || this._config.bar_fill_color || '#3b82f6';
+    this._renderCard(displayName, percent, formattedValueWithUnit, fillColor);
     
   }
   /***************************
@@ -139,6 +143,7 @@ class SimpleBarCard extends HTMLElement {
         }
       </style>
     `;
+    
     this.shadowRoot.innerHTML = `
       ${style}
       <div class="container" style="${containerStyles}">
@@ -152,6 +157,7 @@ class SimpleBarCard extends HTMLElement {
       </div>
     `;
   }
+  
   getCardSize() {
     return 1;
   }
