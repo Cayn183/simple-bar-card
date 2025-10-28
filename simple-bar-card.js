@@ -3,7 +3,6 @@ class SimpleBarCard extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
   }
-
   /***************************
    * Konfigurations-Handler
    ***************************/
@@ -17,7 +16,6 @@ class SimpleBarCard extends HTMLElement {
       ...config
     };
   }
-
   /***************************
    * Home Assistant Update
    ***************************/
@@ -25,41 +23,29 @@ class SimpleBarCard extends HTMLElement {
     this._hass = hass;
     this._render();
   }
-
   /***************************
    * Haupt-Render-Methode
    ***************************/
   _render() {
     if (!this._config || !this._hass) return;
-
-    const min = Number(this._config.min);
-    const max = Number(this._config.max);
-
     const stateObj = this._hass.states[this._config.entity];
     if (!stateObj) {
       this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
       return;
     }
-
     const rawValue = Number(stateObj.state);
     if (isNaN(rawValue)) {
       this._renderError(`Ungültiger Wert: ${stateObj.state}`);
       return;
     }
-
-    // Farbskala
-    const fillColor = this._getColorForValue(rawValue);
-
     // Werte normalisieren und formatieren
     const percent = this._calculatePercent(rawValue);
     const displayName = this._calculateDisplayName(stateObj);
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
-
     // Styles + Template einfügen
-    this._renderCard(displayName, percent, formattedValueWithUnit, fillColor);
-
+    this._renderCard(displayName, percent, formattedValueWithUnit);
+    const fillColor = this._getColorForValue(rawValue);
   }
-
   /***************************
    * Hilfsmethoden
    ***************************/
@@ -74,24 +60,22 @@ class SimpleBarCard extends HTMLElement {
     return Math.min(Math.max(percent, 0), 100);
   }
 
-  _getColorForValue(value) {
-    const thresholds = this._config.color_thresholds;
-    if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
-      return this._config.bar_fill_color || '#3b82f6'; // Default-Farbe
-    }
-
-    // thresholds müssen aufsteigend nach value sortiert sein
-    for (let i = 0; i < thresholds.length; i++) {
-      if (value <= thresholds[i].value) {
-        return thresholds[i].color;
-      }
-    }
-    // Wenn größer als alle Werte => letzte Farbe nehmen
-    return thresholds[thresholds.length - 1].color;
-  }
-
   _calculateDisplayName(stateObj) {
     return this._config.name || stateObj.attributes.friendly_name || this._config.entity;
+  }
+
+  _getColorForValue(value) {
+  const thresholds = this._config.color_thresholds;
+  if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
+    // Fallbackfarbe
+    return this._config.bar_fill_color || '#3b82f6';
+  }
+  for (const threshold of thresholds) {
+    if (value <= threshold.value) {
+      return threshold.color;
+    }
+  }
+  return thresholds[thresholds.length - 1].color;
   }
 
   _formatValue(value, stateObj) {
@@ -108,14 +92,14 @@ class SimpleBarCard extends HTMLElement {
       --card-border-radius: ${this._config.card_border_radius || '12px'};
       --bar-background-color: ${this._config.bar_background_color || '#ddd'};
       --bar-fill-color: ${fillColor};
-    `;
+      `;
       
     const style = `
       <style>
         .container {
           font-family: sans-serif;
           width: 100%;
-          padding: 12px;
+          padding: 8px;
           box-sizing: border-box;
           background-color: var(--card-background-color);
           border: 1px solid var(--card-border-color);
@@ -153,7 +137,6 @@ class SimpleBarCard extends HTMLElement {
         }
       </style>
     `;
-
     this.shadowRoot.innerHTML = `
       ${style}
       <div class="container" style="${containerStyles}">
@@ -167,10 +150,8 @@ class SimpleBarCard extends HTMLElement {
       </div>
     `;
   }
-
   getCardSize() {
     return 1;
   }
 }
-
 customElements.define('simple-bar-card', SimpleBarCard);
