@@ -181,6 +181,7 @@ class SimpleBarCard extends HTMLElement {
           white-space: nowrap;
           margin-left: 12px;
           height: 24px;           /* Höhe passend zur Balkenhöhe */
+          margin-bottom: -10px; /* oder negative Werte für genauere Justierung */
           box-sizing: border-box;
         }
         .value {
