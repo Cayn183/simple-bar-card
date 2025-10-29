@@ -123,25 +123,23 @@ class SimpleBarCard extends HTMLElement {
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          background-color: var(--icon-bg-color, #3b82f6);
           display: flex;
           align-items: center;
           justify-content: center;
           margin-right: 12px;
           box-sizing: border-box;
+          background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
         }
         .bar-icon {
-          display: block !important;
           width: 20px !important;
           height: 20px !important;
+          display: inline-block !important;
+          vertical-align: middle !important;
           margin: 0 !important;
           padding: 0 !important;
           line-height: 1 !important;
+          transform: translate(5px, 5px); /* Feinjustierung */
           color: var(--icon-color, #fff);
-        }
-        .bar-icon::part(svg) {
-          display: block;
-          margin: 0 auto;
         }
         .bar-background {
           flex-grow: 1;
