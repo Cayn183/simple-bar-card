@@ -137,7 +137,7 @@ class SimpleBarCard extends HTMLElement {
           margin: 0 !important;
           padding: 0 !important;
           line-height: 1 !important;
-          transform: translate(3px, 3px); /* Feinjustierung */
+          transform: translate(4px, 4px); /* Feinjustierung */
           color: var(--icon-color, #fff);
         }
         .main-container {
