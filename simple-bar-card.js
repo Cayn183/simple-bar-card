@@ -128,6 +128,7 @@ class SimpleBarCard extends HTMLElement {
           justify-content: center;
           margin-right: 12px;
           box-sizing: border-box;
+          transform: translate(0px, -5px); /* Feinjustierung */
           background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
         }
         .bar-icon {
