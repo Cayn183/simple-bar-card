@@ -110,14 +110,13 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--card-background-color);
           border: 1px solid var(--card-border-color);
           border-radius: var(--card-border-radius);
-        }
-        .label {
-          margin-bottom: 6px;
-          margin-left: 50px;
-          font-weight: 600;
-        }
-        .bar-row {
           display: flex;
+          align-items: center;
+        }
+        .icon-container {
+          width: 50px;
+          display: flex;
+          justify-content: center;
           align-items: center;
         }
         .icon-circle {
@@ -127,10 +126,7 @@ class SimpleBarCard extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-right: 12px;
-          box-sizing: border-box;
-          transform: translate(0px, -5px); /* Feinjustierung */
-          background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
+          background-color: var(--icon-bg-color, #3b82f6);
         }
         .bar-icon {
           width: 30px !important;
@@ -142,6 +138,21 @@ class SimpleBarCard extends HTMLElement {
           line-height: 1 !important;
           transform: translate(-2px, -3px); /* Feinjustierung */
           color: var(--icon-color, #fff);
+        }
+        .main-container {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-left: 12px;
+        }
+        .label {
+          margin-bottom: 6px;
+          font-weight: 600;
+        }
+        .bar-row {
+          display: flex;
+          align-items: center;
         }
         .bar-background {
           flex-grow: 1;
@@ -158,6 +169,14 @@ class SimpleBarCard extends HTMLElement {
           border-radius: 12px 0 0 12px;
           transition: width 0.3s ease;
         }
+        .value-container {
+          width: 60px;
+          font-size: 14px;
+          color: #444;
+          text-align: right;
+          white-space: nowrap;
+          margin-left: 12px;
+        }
         .value {
           min-width: 50px;
           font-size: 14px;
@@ -170,22 +189,22 @@ class SimpleBarCard extends HTMLElement {
     
     this.shadowRoot.innerHTML = `
       ${style}
-      <div class="container" style="${containerStyles}">
-        <div class="label">${displayName}</div>
-        <div class="bar-row">
-          <div class="icon-circle" style="background-color: ${this._config.icon_bg_color || '#3b82f6'};">
-            <ha-icon 
-              class="bar-icon" 
-              icon="${this._config.icon || 'mdi:chart-bar'}" 
-              style="color: ${this._config.icon_color || 'var(--paper-item-icon-color, #fff)'}">
-            </ha-icon>
+        <div class="container" style="${containerStyles}">
+          <div class="icon-container">
+            <div class="icon-circle">
+              <ha-icon class="bar-icon" icon="${this._config.icon || 'mdi:chart-bar'}" style="color: ${this._config.icon_color || 'var(--paper-item-icon-color, #fff)'}"></ha-icon>
+            </div>
           </div>
-          <div class="bar-background">
-            <div class="bar-fill"></div>
+          <div class="main-container">
+            <div class="label">${displayName}</div>
+            <div class="bar-row">
+              <div class="bar-background">
+                <div class="bar-fill"></div>
+              </div>
+            </div>
           </div>
-          <div class="value">${formattedValueWithUnit}</div>
+          <div class="value-container">${formattedValueWithUnit}</div>
         </div>
-      </div>
     `;
   }
   
