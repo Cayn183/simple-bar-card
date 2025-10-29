@@ -131,11 +131,14 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
         }
         .bar-icon {
-          width: 20px;
-          height: 20px;
-          color: var(--icon-color, #fff);        /* Icon-Farbe flexibel via CSS-Variable */
-          display: block;                        /* Kein Inline-Element mehr */
-          margin: auto;                         /* Zentriert horizontal & vertikal im Flex-Container */
+          width: 20px !important;
+          height: 20px !important;
+          display: inline-block !important;
+          vertical-align: middle !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          line-height: 1 !important;
+          color: var(--icon-color, #fff);
         }
         .bar-background {
           flex-grow: 1;
