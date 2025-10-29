@@ -174,9 +174,14 @@ class SimpleBarCard extends HTMLElement {
           width: 60px;
           font-size: 14px;
           color: #444;
-          text-align: right;
+          /* text-align: right;  <-- entferne das */
+          display: flex;         /* füge Flex hinzu */
+          justify-content: center; /* horizontal zentrieren */
+          align-items: flex-end;  /* vertikal unten ausrichten */
           white-space: nowrap;
           margin-left: 12px;
+          height: 24px;           /* Höhe passend zur Balkenhöhe */
+          box-sizing: border-box;
         }
         .value {
           min-width: 50px;
