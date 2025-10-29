@@ -179,7 +179,7 @@ class SimpleBarCard extends HTMLElement {
           justify-content: center; /* horizontal zentrieren */
           align-items: flex-end;  /* vertikal unten ausrichten */
           white-space: nowrap;
-          margin-left: 12px;
+          margin-left: 8px;
           height: 24px;           /* Höhe passend zur Balkenhöhe */
           margin-bottom: -20px; /* oder negative Werte für genauere Justierung */
           box-sizing: border-box;
