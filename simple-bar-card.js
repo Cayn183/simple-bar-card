@@ -119,6 +119,13 @@ class SimpleBarCard extends HTMLElement {
           display: flex;
           align-items: center;
         }
+        .bar-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 12px; /* Abstand zwischen Icon und Balken */
+          color: var(--paper-item-icon-color, #444); /* Farbe optional anpassbar */
+          flex-shrink: 0;
+        }
         .bar-background {
           flex-grow: 1;
           height: 24px;
@@ -149,6 +156,7 @@ class SimpleBarCard extends HTMLElement {
       <div class="container" style="${containerStyles}">
         <div class="label">${displayName}</div>
         <div class="bar-row">
+          <ha-icon class="bar-icon" icon="${this._config.icon || 'mdi:chart-bar'}"></ha-icon>
           <div class="bar-background">
             <div class="bar-fill"></div>
           </div>
