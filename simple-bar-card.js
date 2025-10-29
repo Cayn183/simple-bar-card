@@ -120,8 +120,8 @@ class SimpleBarCard extends HTMLElement {
           align-items: center;
         }
         .icon-circle {
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           display: flex;
           align-items: center;
