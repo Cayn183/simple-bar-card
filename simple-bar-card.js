@@ -128,11 +128,14 @@ class SimpleBarCard extends HTMLElement {
           justify-content: center;
           margin-right: 12px;
           box-sizing: border-box;
+          background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
         }
         .bar-icon {
           width: 20px;
           height: 20px;
-          color: var(--paper-item-icon-color, #fff);
+          color: var(--icon-color, #fff);        /* Icon-Farbe flexibel via CSS-Variable */
+          display: block;                        /* Kein Inline-Element mehr */
+          margin: auto;                         /* Zentriert horizontal & vertikal im Flex-Container */
         }
         .bar-background {
           flex-grow: 1;
@@ -165,7 +168,11 @@ class SimpleBarCard extends HTMLElement {
         <div class="label">${displayName}</div>
         <div class="bar-row">
           <div class="icon-circle" style="background-color: ${this._config.icon_bg_color || '#3b82f6'};">
-            <ha-icon class="bar-icon" icon="${this._config.icon || 'mdi:chart-bar'}"></ha-icon>
+            <ha-icon 
+              class="bar-icon" 
+              icon="${this._config.icon || 'mdi:chart-bar'}" 
+              style="color: ${this._config.icon_color || 'var(--paper-item-icon-color, #fff)'}">
+            </ha-icon>
           </div>
           <div class="bar-background">
             <div class="bar-fill"></div>
