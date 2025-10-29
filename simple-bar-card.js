@@ -113,6 +113,7 @@ class SimpleBarCard extends HTMLElement {
         }
         .label {
           margin-bottom: 6px;
+          margin-left: 50px;
           font-weight: 600;
         }
         .bar-row {
@@ -120,8 +121,8 @@ class SimpleBarCard extends HTMLElement {
           align-items: center;
         }
         .icon-circle {
-          width: 36px;
-          height: 36px;
+          width: 50px;
+          height: 50px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -132,8 +133,8 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--icon-bg-color, #3b82f6); /* CSS-Variable für Hintergrund */
         }
         .bar-icon {
-          width: 20px !important;
-          height: 20px !important;
+          width: 30px !important;
+          height: 30px !important;
           display: inline-block !important;
           vertical-align: middle !important;
           margin: 0 !important;
