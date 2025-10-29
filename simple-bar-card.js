@@ -120,8 +120,8 @@ class SimpleBarCard extends HTMLElement {
           align-items: center;
         }
         .icon-circle {
-          width: 50px;
-          height: 50px;
+          width: 45px;
+          height: 45px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -129,14 +129,13 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--icon-bg-color, #3b82f6);
         }
         .bar-icon {
-          width: 30px !important;
-          height: 30px !important;
+          width: 35px !important;
+          height: 35px !important;
           display: inline-block !important;
           vertical-align: middle !important;
           margin: 0 !important;
           padding: 0 !important;
           line-height: 1 !important;
-          transform: translate(-2px, -3px); /* Feinjustierung */
           color: var(--icon-color, #fff);
         }
         .main-container {
