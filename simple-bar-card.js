@@ -295,25 +295,43 @@ class SimpleBarCard extends HTMLElement {
     const icon = this._config.icon || stateObj.attributes.icon || this._config.icon || 'mdi:chart-bar';
     const iconColor = this._config.icon_color || stateObj.attributes.entity_picture ? undefined : (this._config.icon_color || 'var(--paper-item-icon-color, #fff)');
 
-    // Mode handling
+    // Mode handling (bipolar with mode option: 'per_side' (default) | 'symmetric')
     if (this._config.bipolar) {
       const min = Number(this._config.min);
       const max = Number(this._config.max);
       const clampedValue = Math.min(Math.max(rawValue, min), max);
 
-      let negScale = 0; // 0..1 (scaleX) for negative half
-      let posScale = 0; // 0..1 (scaleX) for positive half
+      // Choose bipolar scaling mode (default: per_side)
+      const mode = this._config.bipolar_mode || 'per_side'; // 'per_side' | 'symmetric'
 
-      if (clampedValue < 0 && min < 0) {
-        // negPercent normalized to 0..50 earlier; here compute scale: 0..1
-        const negPercent = Math.min(Math.abs(clampedValue / min), 1) * 50;
-        negScale = negPercent / 50;
-      } else if (clampedValue > 0 && max > 0) {
-        const posPercent = Math.min(clampedValue / max, 1) * 50;
-        posScale = posPercent / 50;
+      // Outputs for transform scale (0..1)
+      let negScale = 0;
+      let posScale = 0;
+
+      // Helper: avoid division by zero
+      const safe = (v) => { v = Number(v); return (isFinite(v) && v !== 0) ? v : null; };
+
+      if (mode === 'per_side') {
+        // Each side scales to its own configured extreme (min for negative, max for positive)
+        const safeMin = safe(min); // null if 0 or invalid
+        const safeMax = safe(max);
+
+        if (clampedValue < 0 && safeMin !== null && min < 0) {
+          negScale = Math.min(Math.abs(clampedValue / min), 1); // 0..1
+        } else if (clampedValue > 0 && safeMax !== null && max > 0) {
+          posScale = Math.min(clampedValue / max, 1); // 0..1
+        }
+      } else {
+        // symmetric: both sides scaled relative to the same absolute maximum
+        const maxAbs = Math.max(Math.abs(min || 0), Math.abs(max || 0), 1e-9); // avoid 0
+        if (clampedValue < 0) {
+          negScale = Math.min(Math.abs(clampedValue) / maxAbs, 1);
+        } else if (clampedValue > 0) {
+          posScale = Math.min(clampedValue / maxAbs, 1);
+        }
       }
 
-      // Prepare pending state
+      // Prepare pending state (scales are 0..1 for scaleX)
       const newState = {
         modeBipolar: true,
         negScale,
