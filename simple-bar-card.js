@@ -219,7 +219,7 @@ class SimpleBarCard extends HTMLElement {
           height: 100%;
           width: ${percent}%;
           background-color: var(--bar-fill-color);
-          border-radius: 12px 0 0 12px;
+          border-radius: 12px 6px 6px 12px;
           transition: width 0.3s ease;
         }
       </style>
