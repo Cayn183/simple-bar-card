@@ -13,6 +13,7 @@ class SimpleBarCard extends HTMLElement {
     this._config = {
       min: 0,
       max: 100,
+      bipolar: false,
       ...config
     };
   }
@@ -23,35 +24,57 @@ class SimpleBarCard extends HTMLElement {
     this._hass = hass;
     this._render();
   }
+  
   /***************************
    * Haupt-Render-Methode
    ***************************/
   _render() {
     
+    //Vorbedingungen prüfen
     if (!this._config || !this._hass) return;
+
     const stateObj = this._hass.states[this._config.entity];
-    
     if (!stateObj) {
       this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
       return;
     }
-    
+
     const rawValue = Number(stateObj.state);
     if (isNaN(rawValue)) {
       this._renderError(`Ungültiger Wert: ${stateObj.state}`);
       return;
     }
+
     
-    // Werte normalisieren und formatieren
-    const percent = this._calculatePercent(rawValue);
+    // Werte & Anzeige vorbereiten
     const displayName = this._calculateDisplayName(stateObj);
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
-    
-    // Styles + Template einfügen
     const fillColor = this._getColorForValue(rawValue) || this._config.bar_fill_color || '#3b82f6';
+
+    // BIPOLARER BALKEN (zentraler Nullpunkt)
+    if (this._config.bipolar) {
+      const min = Number(this._config.min);
+      const max = Number(this._config.max);
+      const clampedValue = Math.min(Math.max(rawValue, min), max);
+
+      let negPercent = 0;
+      let posPercent = 0;
+
+      if (clampedValue < 0 && min < 0) {
+        negPercent = Math.min(Math.abs(clampedValue / min), 1) * 50; // Negativer Anteil bis 50% Breite
+      } else if (clampedValue > 0 && max > 0) {
+        posPercent = Math.min(clampedValue / max, 1) * 50;           // Positiver Anteil bis 50% Breite
+      }
+
+      this._renderBipolarCard(displayName, negPercent, posPercent, formattedValueWithUnit, fillColor);
+      return; // Bipolarer Pfad beendet hier das Rendering
+    }
+
+    // STANDARD BALKEN (eindimensional)
+    const percent = this._calculatePercent(rawValue);
     this._renderCard(displayName, percent, formattedValueWithUnit, fillColor);
-    
   }
+
   /***************************
    * Hilfsmethoden
    ***************************/
@@ -212,6 +235,92 @@ class SimpleBarCard extends HTMLElement {
           </div>
           <div class="value-container">${formattedValueWithUnit}</div>
         </div>
+    `;
+  }
+    
+  _renderBipolarCard(displayName, negPercent, posPercent, formattedValueWithUnit, fillColor) {
+  const containerStyles = `
+    --card-background-color: ${this._config.card_background_color || '#fff'};
+    --card-border-color: ${this._config.card_border_color || '#ccc'};
+    --card-border-radius: ${this._config.card_border_radius || '12px'};
+    --bar-background-color: ${this._config.bar_background_color || '#ddd'};
+    --bar-fill-color: ${fillColor};
+  `.replace(/\s+/g, ' ').trim();
+
+  const style = `
+    <style>
+      .container {
+        font-family: sans-serif;
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        background-color: var(--card-background-color);
+        border: 1px solid var(--card-border-color);
+        border-radius: var(--card-border-radius);
+      }
+      .label {
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .bar-container {
+        position: relative;
+        height: 24px;
+        background-color: var(--bar-background-color);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .zero-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        background-color: var(--card-border-color);
+        transform: translateX(-50%);
+        z-index: 2;
+      }
+      .bar-fill-negative {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 50%;
+        width: ${negPercent}%;
+        background-color: var(--bar-fill-color);
+        border-radius: 12px 0 0 12px;
+        transition: width 0.3s ease;
+        z-index: 1;
+      }
+      .bar-fill-positive {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: ${posPercent}%;
+        background-color: var(--bar-fill-color);
+        border-radius: 0 12px 12px 0;
+        transition: width 0.3s ease;
+        z-index: 1;
+      }
+      .value {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #444;
+        text-align: center;
+      }
+    </style>
+  `;
+
+    this.shadowRoot.innerHTML = `
+      ${style}
+      <div class="container" style="${containerStyles}">
+        <div class="label">${displayName}</div>
+        <div class="bar-container">
+          <div class="zero-line"></div>
+          <div class="bar-fill-negative" style="width: ${negPercent}%; right: 50%;"></div>
+          <div class="bar-fill-positive" style="width: ${posPercent}%; left: 50%;"></div>
+        </div>
+        <div class="value">${formattedValueWithUnit}</div>
+      </div>
     `;
   }
   
