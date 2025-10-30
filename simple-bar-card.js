@@ -289,7 +289,7 @@ class SimpleBarCard extends HTMLElement {
           right: 50%;
           width: ${negPercent}%;
           background-color: var(--bar-fill-color);
-          border-radius: 12px 0 0 12px;
+          border-radius: 6px 0 0 6px;
           transition: width 0.3s ease;
           z-index: 1;
         }
@@ -300,7 +300,7 @@ class SimpleBarCard extends HTMLElement {
           left: 50%;
           width: ${posPercent}%;
           background-color: var(--bar-fill-color);
-          border-radius: 0 12px 12px 0;
+          border-radius: 0 6px 6px 0;
           transition: width 0.3s ease;
           z-index: 1;
         }
