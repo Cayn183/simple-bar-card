@@ -85,8 +85,6 @@ class SimpleBarCard extends HTMLElement {
           line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
           padding: 0;
           color: var(--icon-color, #fff);
-          /* feinjustierung per CSS-Variablen (kann in JS gesetzt werden) */
-          transform: translate(var(--icon-transform-x, 0px), var(--icon-transform-y, 0px));
         }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
