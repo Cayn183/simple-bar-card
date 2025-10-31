@@ -77,11 +77,16 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--icon-bg-color, #3b82f6);
           box-sizing: border-box;
         }
-        ha-icon.bar-icon {
+        .ha-icon.bar-icon {
           width: 35px;
           height: 35px;
           display: block;
+          margin: 0 auto;
+          line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
+          padding: 0;
           color: var(--icon-color, #fff);
+          /* feinjustierung per CSS-Variablen (kann in JS gesetzt werden) */
+          transform: translate(var(--icon-transform-x, 0px), var(--icon-transform-y, 0px));
         }
 
         /* Main area: label + bar */
@@ -181,6 +186,7 @@ class SimpleBarCard extends HTMLElement {
           font-size: 14px;
           color: #444;
           text-align: center;
+          transform: translateY(var(--value-offset, 4px));
         }
       </style>
     `;
