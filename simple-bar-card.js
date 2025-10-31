@@ -188,7 +188,8 @@ class SimpleBarCard extends HTMLElement {
         .value {
           min-width: 50px;
           font-size: 14px;
-          color: #444;
+          color: var(--value-color, #444);
+          font-weight: var(--value-font-weight, 400); /* normal or bold */
           text-align: center;
           transform: translateY(12px);
         }
@@ -267,6 +268,8 @@ class SimpleBarCard extends HTMLElement {
       this._containerEl.style.setProperty('--card-border-radius', this._config.card_border_radius || '12px');
       this._containerEl.style.setProperty('--bar-background-color', this._config.bar_background_color || '#ddd');
       this._containerEl.style.setProperty('--icon-bg-color', this._config.icon_bg_color || '#3b82f6');
+      this._containerEl.style.setProperty('--value-color', this._config.value_color || '#444');
+      this._containerEl.style.setProperty('--value-font-weight', this._config.value_bold ? '700' : '400');
       // icon color via inline style on ha-icon later
     }
   }
