@@ -192,7 +192,7 @@ class SimpleBarCard extends HTMLElement {
           font-size: 14px;
           color: #444;
           text-align: center;
-          transform: translateY(8px);
+          transform: translateY(12px);
         }
       </style>
     `;
