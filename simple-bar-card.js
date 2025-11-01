@@ -199,9 +199,9 @@ class SimpleBarCard extends HTMLElement {
            Enabled via attribute on the host: <simple-bar-card bubble-style> or config key bubble_style: true */
         :host([bubble-style]) .container {
           padding: 6px;
-          border-radius: 18px;
+          border-radius: 30px;
           /* let theme decide background; make card slightly transparent to blend */
-          background-color: var(--card-background-color, rgba(255,255,255,0.04));
+          background-color: var(--card-background-color, rgba(0,0,0,0.1));
           box-shadow: var(--ha-card-box-shadow, 0 4px 10px rgba(0,0,0,0.06));
           border: 1px solid transparent;
         }
@@ -209,7 +209,7 @@ class SimpleBarCard extends HTMLElement {
         :host([bubble-style]) .icon-circle {
           width: 40px;
           height: 40px;
-          background-color: var(--icon-bg-color, transparent);
+          background-color: var(--icon-bg-color, white);
         }
 
         :host([bubble-style]) .main-container {
