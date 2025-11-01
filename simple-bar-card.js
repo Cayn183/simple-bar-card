@@ -209,8 +209,8 @@ class SimpleBarCard extends HTMLElement {
           width: 100%;
           padding: 8px;
           box-sizing: border-box;
-          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
-          border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
+          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(0,0,0,0.15))));
+          //border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
           border-radius: var(--card-border-radius, 12px);
           display: flex;
           align-items: center;
@@ -241,7 +241,7 @@ class SimpleBarCard extends HTMLElement {
           margin: 0 auto;
           line-height: 0;
           padding: 0;
-          color: var(--icon-color, var(--paper-item-icon-color, #fff));
+          color: var(--icon-color, var(--paper-item-icon-color, #6e6c6cff));
         }
 
         :host([bubble-style]) .ha-icon.bar-icon::part(svg) {
@@ -274,7 +274,7 @@ class SimpleBarCard extends HTMLElement {
           position: relative;
           flex-grow: 1;
           height: 24px;
-          background-color: var(--bar-background-color, rgba(0,0,0,0.08));
+          background-color: var(--bar-background-color, rgba(0,0,0,0.25));
           border-radius: 12px;
           overflow: hidden;
           margin-right: 12px;
