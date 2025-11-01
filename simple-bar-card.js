@@ -194,6 +194,62 @@ class SimpleBarCard extends HTMLElement {
           transform: translateY(12px);
         }
       </style>
+      <style>
+        /* Bubble style: opt-in visual variant that matches many HA "bubble" cards.
+           Enabled via attribute on the host: <simple-bar-card bubble-style> or config key bubble_style: true */
+        :host([bubble-style]) .container {
+          padding: 6px;
+          border-radius: 18px;
+          /* let theme decide background; make card slightly transparent to blend */
+          background-color: var(--card-background-color, rgba(255,255,255,0.04));
+          box-shadow: var(--ha-card-box-shadow, 0 4px 10px rgba(0,0,0,0.06));
+          border: 1px solid transparent;
+        }
+
+        :host([bubble-style]) .icon-circle {
+          width: 40px;
+          height: 40px;
+          background-color: var(--icon-bg-color, transparent);
+        }
+
+        :host([bubble-style]) .main-container {
+          margin-left: 8px;
+        }
+
+        :host([bubble-style]) .bar-background {
+          height: 14px;
+          border-radius: 999px;
+          background-color: var(--bar-background-color, rgba(0,0,0,0.06));
+          margin-right: 8px;
+        }
+
+        :host([bubble-style]) .bar-fill,
+        :host([bubble-style]) .bar-fill-negative,
+        :host([bubble-style]) .bar-fill-positive {
+          border-radius: 999px;
+        }
+
+        :host([bubble-style]) .label {
+          font-size: 13px;
+          margin-bottom: 4px;
+        }
+
+        :host([bubble-style]) .value {
+          min-width: 44px;
+          font-size: 13px;
+          transform: translateY(10px);
+        }
+      </style>
+        <style>
+          /* Dark-mode specific override for bubble-style: prefer explicit --card-background-color,
+             otherwise use the requested dark rgba fallback. This respects HA theme variables when present.
+          */
+          @media (prefers-color-scheme: dark) {
+            :host([bubble-style]) .container {
+              background-color: var(--card-background-color, rgba(40,40,40,1));
+            }
+          }
+        </style>
     `;
   }
 
@@ -290,6 +346,12 @@ class SimpleBarCard extends HTMLElement {
       // icon color handled later in _applyState (so HA themes remain default unless config sets icon_color)
       if ('bar_fill_color' in this._config && this._config.bar_fill_color) {
         this._containerEl.style.setProperty('--bar-fill-color', this._config.bar_fill_color);
+      }
+      // Toggle bubble style host attribute so CSS above can react.
+      if (this._config.bubble_style) {
+        this.setAttribute('bubble-style', '');
+      } else {
+        this.removeAttribute('bubble-style');
       }
     }
   }

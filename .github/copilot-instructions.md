@@ -59,3 +59,20 @@ Provide AI coding agents the minimal, actionable knowledge to be productive in t
 
 ---
 If anything here is unclear or you want the guidance to include example PR templates, test steps, or CI hooks, tell me which sections to expand and I'll iterate.
+
+## New: bubble_style (opt-in visual variant)
+
+- Key: `bubble_style` (boolean) — example: `{ entity: 'sensor.test', bubble_style: true }`.
+- Implementation: toggles a host attribute `bubble-style` so CSS inside `simple-bar-card.js` switches to the bubble visuals (smaller bar height, pill-shaped fills, larger border-radius, subtle shadow).
+- Theme-friendly: bubble style only changes layout/shape; colors still come from HA theme variables or explicit config keys.
+
+Quick browser test snippet (manual debug):
+
+```js
+const el = document.createElement('simple-bar-card');
+document.body.appendChild(el);
+el.setConfig({ entity: 'sensor.test', min: 0, max: 100, bubble_style: true });
+el.hass = { states: { 'sensor.test': { state: '42', attributes: { unit_of_measurement: '%', friendly_name: 'Test' } } } };
+```
+
+If you'd like the README updated as well, I can apply the same short section to `README.md` (I attempted earlier but hit a patching quirk — happy to add it next). 
