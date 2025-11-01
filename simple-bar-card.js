@@ -53,8 +53,9 @@ class SimpleBarCard extends HTMLElement {
           width: 100%;
           padding: 8px;
           box-sizing: border-box;
-          background-color: var(--card-background-color, #fff);
-          border: 1px solid var(--card-border-color, #ccc);
+          /* Prefer Home Assistant theme variables; fall back to sensible defaults */
+          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
+          border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
           border-radius: var(--card-border-radius, 12px);
           display: flex;
           align-items: center;
@@ -74,7 +75,8 @@ class SimpleBarCard extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--icon-bg-color, #3b82f6);
+          /* prefer explicit config, otherwise HA theme color */
+          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6));
           box-sizing: border-box;
         }
         .ha-icon.bar-icon {
@@ -84,7 +86,7 @@ class SimpleBarCard extends HTMLElement {
           margin: 0 auto;
           line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
           padding: 0;
-          color: var(--icon-color, #fff);
+          color: var(--icon-color, var(--paper-item-icon-color, #fff));
         }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -104,7 +106,7 @@ class SimpleBarCard extends HTMLElement {
         .label {
           margin-bottom: 6px;
           font-weight: 600;
-          color: var(--label-color, inherit);
+          color: var(--label-color, var(--primary-text-color, inherit));
           font-size: 14px;
         }
 
@@ -117,7 +119,7 @@ class SimpleBarCard extends HTMLElement {
           position: relative;
           flex-grow: 1;
           height: 24px;
-          background-color: var(--bar-background-color, #ddd);
+          background-color: var(--bar-background-color, rgba(0,0,0,0.08));
           border-radius: 12px;
           overflow: hidden;
           margin-right: 12px;
@@ -132,7 +134,7 @@ class SimpleBarCard extends HTMLElement {
           width: 100%;               /* full width, scaled via transform */
           transform-origin: left;
           transform: scaleX(0);
-          background-color: var(--bar-fill-color, #3b82f6);
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
           border-radius: 12px 6px 6px 12px;
           transition: transform 300ms ease;
           will-change: transform;
@@ -147,7 +149,7 @@ class SimpleBarCard extends HTMLElement {
           width: 50%;                /* half width; scaleX(0..1) visualizes amount */
           transition: transform 300ms ease;
           will-change: transform;
-          background-color: var(--bar-fill-color, #3b82f6);
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
         }
         .bar-fill-negative {
           right: 50%;
@@ -167,7 +169,7 @@ class SimpleBarCard extends HTMLElement {
           bottom: 0;
           left: 50%;
           width: 2px;
-          background-color: var(--card-border-color, #ccc);
+          background-color: var(--card-border-color, var(--divider-color, #ccc));
           transform: translateX(-50%);
           z-index: 2;
         }
@@ -186,7 +188,7 @@ class SimpleBarCard extends HTMLElement {
         .value {
           min-width: 50px;
           font-size: 14px;
-          color: var(--value-color, 'inherit');
+          color: var(--value-color, var(--secondary-text-color, inherit));
           font-weight: var(--value-font-weight, 400); /* normal or bold */
           text-align: center;
           transform: translateY(12px);
@@ -259,17 +261,36 @@ class SimpleBarCard extends HTMLElement {
       ...config
     };
 
-    // Apply config-controlled CSS-variables once (or when config changes)
+    // Apply only explicitly provided config-controlled CSS variables.
+    // This preserves Home Assistant themes (dark/light) when no custom color is given.
     if (this._containerEl) {
-      this._containerEl.style.setProperty('--card-background-color', this._config.card_background_color || '#fff');
-      this._containerEl.style.setProperty('--card-border-color', this._config.card_border_color || '#ccc');
-      this._containerEl.style.setProperty('--card-border-radius', this._config.card_border_radius || '12px');
-      this._containerEl.style.setProperty('--bar-background-color', this._config.bar_background_color || '#ddd');
-      this._containerEl.style.setProperty('--icon-bg-color', this._config.icon_bg_color || '#3b82f6');
-      this._containerEl.style.setProperty('--label-color', this._config.label_color || 'inherit');
-      this._containerEl.style.setProperty('--value-color', this._config.value_color || 'inherit');
+      if ('card_background_color' in this._config && this._config.card_background_color) {
+        this._containerEl.style.setProperty('--card-background-color', this._config.card_background_color);
+      }
+      if ('card_border_color' in this._config && this._config.card_border_color) {
+        this._containerEl.style.setProperty('--card-border-color', this._config.card_border_color);
+      }
+      if ('card_border_radius' in this._config && this._config.card_border_radius) {
+        this._containerEl.style.setProperty('--card-border-radius', this._config.card_border_radius);
+      }
+      if ('bar_background_color' in this._config && this._config.bar_background_color) {
+        this._containerEl.style.setProperty('--bar-background-color', this._config.bar_background_color);
+      }
+      if ('icon_bg_color' in this._config && this._config.icon_bg_color) {
+        this._containerEl.style.setProperty('--icon-bg-color', this._config.icon_bg_color);
+      }
+      if ('label_color' in this._config && this._config.label_color) {
+        this._containerEl.style.setProperty('--label-color', this._config.label_color);
+      }
+      if ('value_color' in this._config && this._config.value_color) {
+        this._containerEl.style.setProperty('--value-color', this._config.value_color);
+      }
+      // value font weight still allowed via config boolean
       this._containerEl.style.setProperty('--value-font-weight', this._config.value_bold ? '700' : '400');
-      // icon color via inline style on ha-icon later
+      // icon color handled later in _applyState (so HA themes remain default unless config sets icon_color)
+      if ('bar_fill_color' in this._config && this._config.bar_fill_color) {
+        this._containerEl.style.setProperty('--bar-fill-color', this._config.bar_fill_color);
+      }
     }
   }
 
