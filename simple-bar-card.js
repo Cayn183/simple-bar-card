@@ -195,61 +195,166 @@ class SimpleBarCard extends HTMLElement {
         }
       </style>
       <style>
-        /* Bubble style: opt-in visual variant that matches many HA "bubble" cards.
-           Enabled via attribute on the host: <simple-bar-card bubble-style> or config key bubble_style: true */
+        /* Bubble style duplicate: full copy of the standard styles but scoped to
+           :host([bubble-style]) so you can edit these independently later. The
+           rules intentionally mirror the main styles above.
+        */
+
+        :host([bubble-style]) {
+          display: block;
+        }
+
         :host([bubble-style]) .container {
-          padding: 6px;
-          border-radius: 30px;
-          /* let theme decide background; make card slightly transparent to blend */
-          background-color: var(--card-background-color, rgba(0,0,0,0.1));
-          box-shadow: var(--ha-card-box-shadow, 0 4px 10px rgba(0,0,0,0.06));
-          border: 1px solid transparent;
+          font-family: sans-serif;
+          width: 100%;
+          padding: 8px;
+          box-sizing: border-box;
+          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
+          border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
+          border-radius: var(--card-border-radius, 12px);
+          display: flex;
+          align-items: center;
+        }
+
+        :host([bubble-style]) .icon-container {
+          width: 50px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
         }
 
         :host([bubble-style]) .icon-circle {
-          width: 40px;
-          height: 40px;
-          background-color: var(--icon-bg-color, white);
+          width: 45px;
+          height: 45px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6));
+          box-sizing: border-box;
+        }
+
+        :host([bubble-style]) .ha-icon.bar-icon {
+          width: 35px;
+          height: 35px;
+          display: block;
+          margin: 0 auto;
+          line-height: 0;
+          padding: 0;
+          color: var(--icon-color, var(--paper-item-icon-color, #fff));
+        }
+
+        :host([bubble-style]) .ha-icon.bar-icon::part(svg) {
+          display: block;
+          width: 100%;
+          height: 100%;
         }
 
         :host([bubble-style]) .main-container {
-          margin-left: 8px;
-        }
-
-        :host([bubble-style]) .bar-background {
-          height: 14px;
-          border-radius: 999px;
-          background-color: var(--bar-background-color, rgba(0,0,0,0.06));
-          margin-right: 8px;
-        }
-
-        :host([bubble-style]) .bar-fill,
-        :host([bubble-style]) .bar-fill-negative,
-        :host([bubble-style]) .bar-fill-positive {
-          border-radius: 999px;
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-left: 12px;
         }
 
         :host([bubble-style]) .label {
-          font-size: 13px;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
+          font-weight: 600;
+          color: var(--label-color, var(--primary-text-color, inherit));
+          font-size: 14px;
+        }
+
+        :host([bubble-style]) .bar-row {
+          display: flex;
+          align-items: center;
+        }
+
+        :host([bubble-style]) .bar-background {
+          position: relative;
+          flex-grow: 1;
+          height: 24px;
+          background-color: var(--bar-background-color, rgba(0,0,0,0.08));
+          border-radius: 12px;
+          overflow: hidden;
+          margin-right: 12px;
+        }
+
+        :host([bubble-style]) .bar-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 100%;
+          transform-origin: left;
+          transform: scaleX(0);
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
+          border-radius: 12px 6px 6px 12px;
+          transition: transform 300ms ease;
+          will-change: transform;
+        }
+
+        :host([bubble-style]) .bar-fill-negative,
+        :host([bubble-style]) .bar-fill-positive {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 50%;
+          transition: transform 300ms ease;
+          will-change: transform;
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
+        }
+
+        :host([bubble-style]) .bar-fill-negative {
+          right: 50%;
+          transform-origin: right;
+          border-radius: 6px 0 0 6px;
+        }
+
+        :host([bubble-style]) .bar-fill-positive {
+          left: 50%;
+          transform-origin: left;
+          border-radius: 0 6px 6px 0;
+        }
+
+        :host([bubble-style]) .zero-line {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 50%;
+          width: 2px;
+          background-color: var(--card-border-color, var(--divider-color, #ccc));
+          transform: translateX(-50%);
+          z-index: 2;
+        }
+
+        :host([bubble-style]) .value-container {
+          width: 60px;
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+          white-space: nowrap;
+          margin-left: 8px;
+          height: 24px;
+          box-sizing: border-box;
         }
 
         :host([bubble-style]) .value {
-          min-width: 44px;
-          font-size: 13px;
-          transform: translateY(10px);
+          min-width: 50px;
+          font-size: 14px;
+          color: var(--value-color, var(--secondary-text-color, inherit));
+          font-weight: var(--value-font-weight, 400);
+          text-align: center;
+          transform: translateY(12px);
+        }
+
+        /* Keep dark-mode fallback identical to previous behavior */
+        @media (prefers-color-scheme: dark) {
+          :host([bubble-style]) .container {
+            background-color: var(--card-background-color, rgba(40,40,40,1));
+          }
         }
       </style>
-        <style>
-          /* Dark-mode specific override for bubble-style: prefer explicit --card-background-color,
-             otherwise use the requested dark rgba fallback. This respects HA theme variables when present.
-          */
-          @media (prefers-color-scheme: dark) {
-            :host([bubble-style]) .container {
-              background-color: var(--card-background-color, rgba(40,40,40,1));
-            }
-          }
-        </style>
     `;
   }
 
