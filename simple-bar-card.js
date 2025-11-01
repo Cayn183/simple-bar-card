@@ -195,6 +195,17 @@ class SimpleBarCard extends HTMLElement {
         }
       </style>
       <style>
+        /* Dark-mode: allow an explicit --card-background-dark variable to override
+           the regular background when prefers-color-scheme: dark. This lets users
+           supply a specific dark background via config.card_background_dark.
+        */
+        @media (prefers-color-scheme: dark) {
+          .container {
+            background-color: var(--card-background-dark, var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(0,0,0,0.08)))));
+          }
+        }
+      </style>
+      <style>
         /* Bubble style duplicate: full copy of the standard styles but scoped to
            :host([bubble-style]) so you can edit these independently later. The
            rules intentionally mirror the main styles above.
@@ -230,7 +241,7 @@ class SimpleBarCard extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6));
+          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, white));
           box-sizing: border-box;
         }
 
@@ -348,10 +359,12 @@ class SimpleBarCard extends HTMLElement {
           transform: translateY(12px);
         }
 
-        /* Keep dark-mode fallback identical to previous behavior */
+        /* Bubble-style dark-mode: prefer explicit --card-background-dark, then --card-background-color,
+           then fall back to the previous rgba(40,40,40,1).
+        */
         @media (prefers-color-scheme: dark) {
           :host([bubble-style]) .container {
-            background-color: var(--card-background-color, rgba(40,40,40,1));
+            background-color: var(--card-background-dark, var(--card-background-color, rgba(40,40,40,1)));
           }
         }
       </style>
@@ -423,42 +436,55 @@ class SimpleBarCard extends HTMLElement {
     };
 
     // Apply only explicitly provided config-controlled CSS variables.
-    // This preserves Home Assistant themes (dark/light) when no custom color is given.
-    if (this._containerEl) {
-      if ('card_background_color' in this._config && this._config.card_background_color) {
-        this._containerEl.style.setProperty('--card-background-color', this._config.card_background_color);
+    // Preserve Home Assistant themes when no custom color is given.
+    // Use aliases and set variables on the host and on the container (if present)
+    // to ensure :host([bubble-style]) and media queries see them reliably.
+    const setIf = (prop, val) => {
+      if (val !== undefined && val !== null && val !== '') {
+        try {
+          this.style.setProperty(prop, val);
+        } catch (e) {}
+        if (this._containerEl) this._containerEl.style.setProperty(prop, val);
       }
-      if ('card_border_color' in this._config && this._config.card_border_color) {
-        this._containerEl.style.setProperty('--card-border-color', this._config.card_border_color);
-      }
-      if ('card_border_radius' in this._config && this._config.card_border_radius) {
-        this._containerEl.style.setProperty('--card-border-radius', this._config.card_border_radius);
-      }
-      if ('bar_background_color' in this._config && this._config.bar_background_color) {
-        this._containerEl.style.setProperty('--bar-background-color', this._config.bar_background_color);
-      }
-      if ('icon_bg_color' in this._config && this._config.icon_bg_color) {
-        this._containerEl.style.setProperty('--icon-bg-color', this._config.icon_bg_color);
-      }
-      if ('label_color' in this._config && this._config.label_color) {
-        this._containerEl.style.setProperty('--label-color', this._config.label_color);
-      }
-      if ('value_color' in this._config && this._config.value_color) {
-        this._containerEl.style.setProperty('--value-color', this._config.value_color);
-      }
-      // value font weight still allowed via config boolean
-      this._containerEl.style.setProperty('--value-font-weight', this._config.value_bold ? '700' : '400');
-      // icon color handled later in _applyState (so HA themes remain default unless config sets icon_color)
-      if ('bar_fill_color' in this._config && this._config.bar_fill_color) {
-        this._containerEl.style.setProperty('--bar-fill-color', this._config.bar_fill_color);
-      }
-      // Toggle bubble style host attribute so CSS above can react.
-      if (this._config.bubble_style) {
-        this.setAttribute('bubble-style', '');
-      } else {
-        this.removeAttribute('bubble-style');
-      }
-    }
+    };
+
+    // Support multiple possible config keys for backward-compatibility / user typos
+    const bg = this._config.card_background_color ?? this._config.card_background ?? this._config.card_background;
+    setIf('--card-background-color', bg);
+
+    const borderColor = this._config.card_border_color ?? this._config.card_border;
+    setIf('--card-border-color', borderColor);
+
+    const borderRadius = this._config.card_border_radius ?? this._config.card_border_radius_px;
+    setIf('--card-border-radius', borderRadius);
+
+    const barBg = this._config.bar_background_color ?? this._config.bar_background;
+    setIf('--bar-background-color', barBg);
+
+    const iconBg = this._config.icon_bg_color ?? this._config.icon_bg;
+    setIf('--icon-bg-color', iconBg);
+
+    const labelColor = this._config.label_color ?? this._config.labelColor;
+    setIf('--label-color', labelColor);
+
+    const valueColor = this._config.value_color ?? this._config.valueColor;
+    setIf('--value-color', valueColor);
+
+    // value font weight still allowed via config boolean
+    const valueWeight = this._config.value_bold ? '700' : '400';
+    this.style.setProperty('--value-font-weight', valueWeight);
+    if (this._containerEl) this._containerEl.style.setProperty('--value-font-weight', valueWeight);
+
+    // bar fill color
+    const barFill = this._config.bar_fill_color ?? this._config.bar_fill_color_hex ?? this._config.barFillColor;
+    setIf('--bar-fill-color', barFill);
+
+  // dark-mode specific background (optional)
+  const bgDark = this._config.card_background_dark ?? this._config.cardBackgroundDark ?? this._config.card_backgroundDark;
+  setIf('--card-background-dark', bgDark);
+
+    // Note: bubble-style attribute should be toggled regardless of container build order
+    if (this._config.bubble_style) this.setAttribute('bubble-style', ''); else this.removeAttribute('bubble-style');
   }
 
   /***************************
