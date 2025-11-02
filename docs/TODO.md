@@ -1,66 +1,69 @@
-# TODO (Project planning)
+# TODO — vereinfachte Übersicht
 
-This file contains a compact, prioritized TODO list intended for the main contributor(s).
-Use it as the single source of truth for near-term work. Each item shows: priority (P0..P3), status, owner placeholder and related files.
+Diese Datei ist die einfache, visuelle TODO‑Liste für dieses Repository. Ziel ist eine schnelle, klare Übersicht für die nächsten Schritte. Ich habe die Einträge bewusst auf drei Bereiche reduziert: "In Progress", "Coming Soon" und "Done".
 
-## How to use
-- Edit this file directly for quick updates.
-- Use checkboxes for status. Keep descriptions short and link to related files (e.g. `simple-bar-card.js`, `README.md`).
-
----
-
-## NEXT / Priority P0
-- [ ] (P0) Unit tests for percent & bipolar math — Status: not started — Owner: @assistant — Files: `tests/` or `tools/`  
-  Short: add a small test harness for percent calculations, bipolar modes and color threshold resolution (cover edge cases).
-
-- [ ] (P0) Improve config validation & runtime errors — Status: not started — Owner: @assistant — Files: `simple-bar-card.js`  
-  Short: provide friendly in-card error messages for invalid configs instead of runtime exceptions.
-
-- [ ] (P0) Finalize README examples and wording — Status: in progress — Owner: @you — Files: `README.md`, `examples/`  
-  Short: polish examples, ensure bilingual parity and copyable YAML.
-
-- [ ] (P0) Smoke-test examples in Lovelace — Status: not started — Owner: @you — Files: `examples/*`  
-  Short: paste `examples/*` into Lovelace to verify layout, icons, and theme behavior.
-
-## IN PROGRESS
-- [ ] (P1) Decide repo restructuring & maintenance workflow — Status: in progress — Owner: @you/@assistant  
-  Short: lightweight `docs/`, `examples/` created; decide if `.github/` templates or GitHub Issues/Project will be used.
-
-- [ ] (P1) Implement bar animation option (configurable) — Status: not started — Owner: @assistant — Files: `simple-bar-card.js`  
-  Short: add config for animations, respect prefers-reduced-motion, test performance.
-
-- [ ] (P1) Decide Card Editor approach (schema vs full editor) — Status: not started — Owner: @you/@assistant  
-  Short: pick lightweight JSON schema or full Lovelace editor implementation and plan next steps.
-
-## BACKLOG / Priority P2
-- [ ] (P2) Add examples screenshots and compatibility sweep — Status: not started — Owner: @you  
-  Short: capture screenshots across themes and document browser/HA compatibility.
-
-- [ ] (P2) Simple local test script / smoke tests — Status: not started — Owner: @assistant  
-  Short: provide node script to emulate `hass` and run quick smoke checks.
-
-- [ ] (P2) Performance micro‑optimizations & rAF review — Status: not started — Owner: @assistant  
-  Short: ensure rAF batching and minimal DOM writes; measure on low-end devices.
-
-- [ ] (P2) Create GitHub Issues and Project Board for collaboration — Status: not started — Owner: @you  
-  Short: export high-priority items into Issues and track via Project when collaboration increases.
-
-- [ ] (P2) Add contribution guide & issue templates (`.github/CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE`) — Status: not started — Owner: @you  
-  Short: basic templates to guide contributors.
-
-## DONE (historical)
-- [x] (P0) Multi-entity skeleton (up to 5 rows) — Files: `simple-bar-card.js`
-- [x] (P0) Config parsing for up to 5 entities and suffix overrides — Files: `simple-bar-card.js`
-- [x] (P0) Per-row render & rAF update batching — Files: `simple-bar-card.js`
-- [x] (P0) Icon color SVG fallback handling — Files: `simple-bar-card.js`
-- [x] (P0) Make `icon_show` and `value_show` global — Files: `simple-bar-card.js`
-- [x] (P1) README bilingual update (initial) — Files: `README.md`
+Kurzanleitung
+- Editiere diese Datei direkt, um den Status zu ändern (Checkboxes).  
+- Benutze kurze Titel und verlinke bei Bedarf auf Dateien (`simple-bar-card.js`, `README.md`, `examples/`).
 
 ---
 
-Additional notes:
-- The listed items are intentionally compact; when you approve the set I can split larger items (Card Editor) into sub‑tasks with estimates and milestones.
+## In Progress ▶️
+- [ ] Finalize README examples and wording — Owner: @you — Files: `README.md`, `examples/`  
+  (Bilingual examples polieren, copy‑paste‑ready YAML)  (Release: v0.0.1)
+- [ ] Decide repo restructuring & maintenance workflow — Owner: @you/@assistant — Files: `docs/`, `examples/`  
+  (leichte Reorg: docs + examples, Entscheidung GitHub Issues/Project)  (Release: v0.0.1)
 
+---
+
+## Release plan
+
+- v0.0.1 (Patch): Stabilität & Qualität
+  - Unit tests for percent & bipolar math
+  - Improve config validation & runtime errors
+  - Finalize README examples and wording + Smoke‑test examples in Lovelace
+
+- v0.1.0 (Minor): UX & Tooling
+  - Implement bar animation option (configurable)
+  - Simple local test script / smoke tests
+  - Performance micro‑optimizations & rAF review
+  - Decide Card Editor approach (plan / schema)
+
+
+## Coming Soon 🔜
+- [ ] Unit tests for percent & bipolar math — Owner: @assistant — Files: `tests/` or `tools/`  
+  (kleiner Test‑Harness für Prozent/Bipolar/Thresholds)
+- [ ] Improve config validation & runtime errors — Owner: @assistant — Files: `simple-bar-card.js`  
+  (freundliche In‑Card Fehlermeldungen statt Exceptions)
+- [ ] Implement bar animation option (configurable) — Owner: @assistant — Files: `simple-bar-card.js`  
+  (smooth animations, respects prefers‑reduced‑motion)
+- [ ] Decide Card Editor approach — Owner: @you/@assistant — Files: `docs/`  
+  (leichtes JSON‑Schema vs. Full Lovelace editor)
+- [ ] Smoke-test examples in Lovelace — Owner: @you — Files: `examples/*`  
+  (schnell testen, copy/paste in UI)
+- [ ] Performance micro‑optimizations & rAF review — Owner: @assistant — Files: `simple-bar-card.js`  
+  (DOM writes, batching, low‑end devices)
+- [ ] Simple local test script / smoke tests — Owner: @assistant — Files: `tools/`  
+  (Node script to emulate `hass` for quick checks)
+- [ ] Add examples screenshots and compatibility sweep — Owner: @you — Files: `examples/`, `docs/`  
+  (screenshots for README/docs)
+- [ ] Create GitHub Issues & Project Board (optional) — Owner: @you — Files: `.github/`  
+  (falls du Collaboration tracking möchtest)
+- [ ] Add contribution guide & issue templates — Owner: @you — Files: `.github/`  
+  (CONTRIBUTING.md, ISSUE_TEMPLATE)
+
+## Done ✅
+- [x] Multi‑entity skeleton (up to 5 rows) — Files: `simple-bar-card.js`
+- [x] Config parsing for up to 5 entities and suffix overrides — Files: `simple-bar-card.js`
+- [x] Per‑row render & rAF update batching — Files: `simple-bar-card.js`
+- [x] Icon color SVG fallback handling — Files: `simple-bar-card.js`
+- [x] Make `icon_show` and `value_show` global — Files: `simple-bar-card.js`
+- [x] Docs: `docs/TODO.md` and `docs/usage.md` created — Files: `docs/`
+- [x] README bilingual initial update — Files: `README.md`
+
+---
+
+Wenn Dir das Layout so passt, übernehme ich die Einträge in die interne TODO‑Liste (ich habe das bereits vorbereitet) und wir starten mit den P0‑Items. Willst Du, dass ich die P0‑Items sofort anfange (Unit‑Tests + Config‑Validation), oder möchtest Du zuerst noch Änderungen am Layout?
 
 ---
 
