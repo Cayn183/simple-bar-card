@@ -86,7 +86,8 @@ class SimpleBarCard extends HTMLElement {
             margin: 0 auto;
             line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
             padding: 0;
-            color: var(--icon-color, var(--paper-item-icon-color, #3b82f6));
+            /* Prefer explicit CSS variable, otherwise use Home Assistant theme icon color */
+            color: var(--icon-color, var(--paper-item-icon-color, inherit));
           }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -245,7 +246,8 @@ class SimpleBarCard extends HTMLElement {
           }
 
           .ha-icon.bar-icon {
-            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, #3b82f6)));
+            /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
           }
         }
       </style>
@@ -445,7 +447,7 @@ class SimpleBarCard extends HTMLElement {
     }
 
   // Inline icon color (overrides CSS variable when provided). If not set,
-  // leave undefined so CSS variables control the color (default #3b82f6).
+  // leave undefined so CSS variables control the color (default: Home Assistant theme icon color).
   const iconColor = (this._config.icon_color !== undefined) ? this._config.icon_color : undefined;
 
     // Mode handling (bipolar with mode option: 'per_side' (default) | 'symmetric')
