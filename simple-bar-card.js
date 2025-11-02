@@ -73,6 +73,14 @@ class SimpleBarCard extends HTMLElement {
           align-items: center;
         }
 
+        /* Optional heading above the entities */
+        .heading {
+          font-weight: 700;
+          font-size: 14px;
+          margin-bottom: 6px;
+          color: var(--label-color, var(--primary-text-color, inherit));
+        }
+
         /* Icon area */
         .icon-container {
           width: 50px;
@@ -278,6 +286,7 @@ class SimpleBarCard extends HTMLElement {
     template.innerHTML = `
       ${this._commonStyles()}
       <div class="container">
+        <div class="heading" style="display:none"></div>
         <div class="entities">
           <!-- up to 5 entity rows; visibility controlled dynamically -->
           <div class="entity-row">
@@ -316,6 +325,7 @@ class SimpleBarCard extends HTMLElement {
 
     // Cache refs
     this._containerEl = this.shadowRoot.querySelector('.container');
+  this._headingEl = this.shadowRoot.querySelector('.heading');
 
     // Per-row cached refs (support up to 5 rows)
     this._rowEls = [];
@@ -364,6 +374,9 @@ class SimpleBarCard extends HTMLElement {
   icon_show: true,
   // `value_show` controls whether the numeric value column is visible. Default: true.
   value_show: true,
+  // Optional heading above entities
+  heading_show: false,
+  heading: undefined,
       ...config
     };
 
@@ -481,6 +494,16 @@ class SimpleBarCard extends HTMLElement {
         } else {
           el.style.display = 'none';
         }
+      }
+    }
+
+    // Heading display
+    if (this._headingEl) {
+      if (this._config.heading_show) {
+        this._headingEl.textContent = this._config.heading || '';
+        this._headingEl.style.display = '';
+      } else {
+        this._headingEl.style.display = 'none';
       }
     }
 
