@@ -67,6 +67,12 @@ class SimpleBarCard extends HTMLElement {
           gap: 8px;
         }
 
+        /* Each entity row keeps the original horizontal layout: icon | main | value */
+        .entity-row {
+          display: flex;
+          align-items: center;
+        }
+
         /* Icon area */
         .icon-container {
           width: 50px;
