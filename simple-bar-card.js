@@ -585,6 +585,16 @@ class SimpleBarCard extends HTMLElement {
       } else {
         this._iconEl.style.removeProperty('color');
       }
+      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
+      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
+      // we traverse shadowRoots to find the svg and set path fills. This forces
+      // the visible icon color to match the theme or an explicit icon_color.
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+          ? state.iconColor
+          : window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
+      } catch (e) {}
       last.iconColor = state.iconColor;
     }
 
@@ -667,6 +677,32 @@ class SimpleBarCard extends HTMLElement {
       }
     }
     return thresholds[thresholds.length - 1].color;
+  }
+
+  // Try to find the inner SVG inside ha-icon / ha-svg-icon shadow roots and set
+  // its path fills to the provided color. This is necessary because many HA
+  // icon implementations render the <svg> inside a shadow DOM and do not
+  // automatically inherit currentColor.
+  _applyInnerSvgColor(iconEl, color) {
+    if (!iconEl) return;
+    try {
+      // ha-icon -> shadowRoot -> ha-svg-icon -> shadowRoot -> svg
+      const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
+      const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
+      if (!svg) return;
+
+      // Compute a concrete color value if needed
+      const fillVal = color || window.getComputedStyle(iconEl).color || null;
+      if (!fillVal) return;
+
+      // Set fill on path elements (safe and effective)
+      const paths = svg.querySelectorAll('path, circle, rect, polygon');
+      paths.forEach(p => {
+        try { p.setAttribute('fill', fillVal); } catch (e) {}
+      });
+    } catch (e) {
+      // best-effort only
+    }
   }
 
   _formatValue(value, stateObj) {
