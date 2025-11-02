@@ -94,6 +94,8 @@ class SimpleBarCard extends HTMLElement {
           display: block;
           width: 100%;
           height: 100%;
+          /* Ensure the SVG paths use the element's color (currentColor) so theme colors apply */
+          fill: currentColor;
         }
 
         /* Main area: label + bar */
