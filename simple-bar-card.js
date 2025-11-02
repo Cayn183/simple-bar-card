@@ -57,8 +57,14 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
           border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
           border-radius: var(--card-border-radius, 12px);
+          display: block;
+        }
+
+        /* Entities wrapper: stack multiple entity rows vertically */
+        .entities {
           display: flex;
-          align-items: center;
+          flex-direction: column;
+          gap: 8px;
         }
 
         /* Icon area */
@@ -266,28 +272,37 @@ class SimpleBarCard extends HTMLElement {
     template.innerHTML = `
       ${this._commonStyles()}
       <div class="container">
-        <div class="icon-container">
-          <div class="icon-circle">
-            <ha-icon class="bar-icon"></ha-icon>
-          </div>
-        </div>
-        <div class="main-container">
-          <div class="label"></div>
-          <div class="bar-row">
-            <div class="bar-background">
-              <!-- standard fill (scaled via transform) -->
-              <div class="bar-fill"></div>
-
-              <!-- bipolar fills (each covers half, scaled via transform) -->
-              <div class="bar-fill-negative" style="transform: scaleX(0)"></div>
-              <div class="bar-fill-positive" style="transform: scaleX(0)"></div>
-
-              <!-- zero line (shown only in bipolar mode) -->
-              <div class="zero-line" style="display:none"></div>
+        <div class="entities">
+          <!-- up to 5 entity rows; visibility controlled dynamically -->
+          <div class="entity-row">
+            <div class="icon-container">
+              <div class="icon-circle">
+                <ha-icon class="bar-icon"></ha-icon>
+              </div>
             </div>
+            <div class="main-container">
+              <div class="label"></div>
+              <div class="bar-row">
+                <div class="bar-background">
+                  <!-- standard fill (scaled via transform) -->
+                  <div class="bar-fill"></div>
+
+                  <!-- bipolar fills (each covers half, scaled via transform) -->
+                  <div class="bar-fill-negative" style="transform: scaleX(0)"></div>
+                  <div class="bar-fill-positive" style="transform: scaleX(0)"></div>
+
+                  <!-- zero line (shown only in bipolar mode) -->
+                  <div class="zero-line" style="display:none"></div>
+                </div>
+              </div>
+            </div>
+            <div class="value-container"><div class="value"></div></div>
           </div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
         </div>
-        <div class="value-container"><div class="value"></div></div>
       </div>
     `;
     // Append once
@@ -295,15 +310,37 @@ class SimpleBarCard extends HTMLElement {
 
     // Cache refs
     this._containerEl = this.shadowRoot.querySelector('.container');
-    this._labelEl = this.shadowRoot.querySelector('.label');
-    this._barBackgroundEl = this.shadowRoot.querySelector('.bar-background');
-    this._barFillEl = this.shadowRoot.querySelector('.bar-fill');
-    this._barFillNegEl = this.shadowRoot.querySelector('.bar-fill-negative');
-    this._barFillPosEl = this.shadowRoot.querySelector('.bar-fill-positive');
-    this._zeroLineEl = this.shadowRoot.querySelector('.zero-line');
-    this._valueEl = this.shadowRoot.querySelector('.value');
-    this._iconEl = this.shadowRoot.querySelector('ha-icon.bar-icon');
-    this._iconCircleEl = this.shadowRoot.querySelector('.icon-circle');
+
+    // Per-row cached refs (support up to 5 rows)
+    this._rowEls = [];
+    const rows = this.shadowRoot.querySelectorAll('.entity-row');
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.querySelector('.icon-container')) {
+        // clone the inner structure from the first row if empty
+        const first = rows[0];
+        row.innerHTML = first.innerHTML;
+      }
+      const r = {
+        root: row,
+        iconEl: row.querySelector('ha-icon.bar-icon'),
+        iconCircleEl: row.querySelector('.icon-circle'),
+        labelEl: row.querySelector('.label'),
+        barBackgroundEl: row.querySelector('.bar-background'),
+        barFillEl: row.querySelector('.bar-fill'),
+        barFillNegEl: row.querySelector('.bar-fill-negative'),
+        barFillPosEl: row.querySelector('.bar-fill-positive'),
+        zeroLineEl: row.querySelector('.zero-line'),
+        valueEl: row.querySelector('.value')
+      };
+      this._rowEls.push(r);
+    }
+
+    // Initialize last state per row
+    this._lastStateRows = Array.from({ length: this._rowEls.length }, () => ({}));
+    // Pending row updates storage
+    this._pendingRowStates = {};
+    this._rowUpdateScheduled = false;
   }
 
   /***************************
@@ -387,6 +424,60 @@ class SimpleBarCard extends HTMLElement {
       }
     }
 
+    // Parse up to 5 entities. Support two styles:
+    // - config.entities: array of strings or objects
+    // - config.entity, config.entity_2, config.entity_3, ...
+    this._entities = [];
+    if (Array.isArray(this._config.entities) && this._config.entities.length > 0) {
+      if (this._config.entities.length > 5) throw new Error('Maximal 5 entities sind erlaubt');
+      for (const e of this._config.entities) {
+        if (typeof e === 'string') {
+          this._entities.push(Object.assign({}, this._config, { entity: e }));
+        } else if (typeof e === 'object' && e !== null) {
+          this._entities.push(Object.assign({}, this._config, e));
+        }
+      }
+    } else {
+      // gather entity, entity_2 .. entity_5
+      for (let i = 1; i <= 5; i++) {
+        const key = i === 1 ? 'entity' : `entity_${i}`;
+        if (key in this._config && this._config[key]) {
+          // build per-entity config by taking base and applying suffixed overrides
+          const per = Object.assign({}, this._config);
+          // apply overrides like min_2 => per.min
+          for (const k of Object.keys(this._config)) {
+            const suffix = `_${i}`;
+            if (k.endsWith(suffix)) {
+              const baseKey = k.slice(0, -suffix.length);
+              per[baseKey] = this._config[k];
+            }
+          }
+          per.entity = this._config[key];
+          this._entities.push(per);
+        }
+      }
+    }
+
+    if (this._entities.length === 0) {
+      throw new Error('Mindestens eine Entity muss angegeben werden');
+    }
+
+    if (this._entities.length > 5) {
+      throw new Error('Maximal 5 entities sind erlaubt');
+    }
+
+    // Show/hide row elements according to number of entities configured
+    if (this._rowEls && this._rowEls.length) {
+      for (let i = 0; i < this._rowEls.length; i++) {
+        const el = this._rowEls[i].root;
+        if (i < this._entities.length) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      }
+    }
+
     // Icon visibility: support `icon_show: false` to remove the icon column and
     // let the bar content shift left. `icon` (string) is used only as the
     // icon name when present; `icon_show` controls visibility independently.
@@ -419,107 +510,65 @@ class SimpleBarCard extends HTMLElement {
   _render() {
     // Preconditions
     if (!this._config || !this._hass) return;
-
-    const stateObj = this._hass.states[this._config.entity];
-    if (!stateObj) {
-      this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
-      return;
-    }
-
-    const rawValue = Number(stateObj.state);
-    if (isNaN(rawValue)) {
-      this._renderError(`Ungültiger Wert: ${stateObj.state}`);
-      return;
-    }
-
-    // Prepare display values
-    const displayName = this._calculateDisplayName(stateObj);
-    const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
-    const fillColor = this._getColorForValue(rawValue) || this._config.bar_fill_color || '#3b82f6';
-
-    // Icon handling: the `icon` config is the icon name (string). Visibility
-    // is controlled separately by `icon_show` (boolean). If icon_show is
-    // false we omit the icon; otherwise prefer config.icon, then entity
-    // attribute, then a sensible default.
-    let icon;
-    if (this._config.icon_show === false) {
-      icon = undefined;
-    } else {
-      icon = (this._config.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
-    }
-
-  // Inline icon color (overrides CSS variable when provided). If not set,
-  // leave undefined so CSS variables control the color (default: Home Assistant theme icon color).
-  const iconColor = (this._config.icon_color !== undefined) ? this._config.icon_color : undefined;
-
-    // Mode handling (bipolar with mode option: 'per_side' (default) | 'symmetric')
-    if (this._config.bipolar) {
-      const min = Number(this._config.min);
-      const max = Number(this._config.max);
-      const clampedValue = Math.min(Math.max(rawValue, min), max);
-
-      // Choose bipolar scaling mode (default: per_side)
-      const mode = this._config.bipolar_mode || 'per_side'; // 'per_side' | 'symmetric'
-
-      // Outputs for transform scale (0..1)
-      let negScale = 0;
-      let posScale = 0;
-
-      // Helper: avoid division by zero
-      const safe = (v) => { v = Number(v); return (isFinite(v) && v !== 0) ? v : null; };
-
-      if (mode === 'per_side') {
-        // Each side scales to its own configured extreme (min for negative, max for positive)
-        const safeMin = safe(min); // null if 0 or invalid
-        const safeMax = safe(max);
-
-        if (clampedValue < 0 && safeMin !== null && min < 0) {
-          negScale = Math.min(Math.abs(clampedValue / min), 1); // 0..1
-        } else if (clampedValue > 0 && safeMax !== null && max > 0) {
-          posScale = Math.min(clampedValue / max, 1); // 0..1
-        }
-      } else {
-        // symmetric: both sides scaled relative to the same absolute maximum
-        const maxAbs = Math.max(Math.abs(min || 0), Math.abs(max || 0), 1e-9); // avoid 0
-        if (clampedValue < 0) {
-          negScale = Math.min(Math.abs(clampedValue) / maxAbs, 1);
-        } else if (clampedValue > 0) {
-          posScale = Math.min(clampedValue / maxAbs, 1);
-        }
+    // For each configured entity, compute its display state and schedule an update for that row
+    for (let i = 0; i < this._entities.length; i++) {
+      const per = this._entities[i];
+      const stateObj = this._hass.states[per.entity];
+      if (!stateObj) {
+        this._renderError(`Entity nicht gefunden: ${per.entity}`);
+        return;
       }
 
-      // Prepare pending state (scales are 0..1 for scaleX)
-      const newState = {
-        modeBipolar: true,
-        negScale,
-        posScale,
-        fillColor,
-        displayName,
-        formattedValueWithUnit,
-        icon,
-        iconColor,
-        rawValue
-      };
+      const rawValue = Number(stateObj.state);
+      if (isNaN(rawValue)) {
+        this._renderError(`Ungültiger Wert: ${stateObj.state}`);
+        return;
+      }
 
-      this._scheduleStateUpdate(newState);
-      return;
+      const displayName = per.name || stateObj.attributes.friendly_name || per.entity;
+      const formattedValueWithUnit = this._formatValue(rawValue, stateObj, per);
+      const fillColor = this._getColorForValue(rawValue, per) || per.bar_fill_color || '#3b82f6';
+
+      // Icon handling per entity
+      let icon;
+      if (per.icon_show === false) {
+        icon = undefined;
+      } else {
+        icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
+      }
+
+      const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
+
+      // Mode handling
+      if (per.bipolar) {
+        const min = Number(per.min);
+        const max = Number(per.max);
+        const clampedValue = Math.min(Math.max(rawValue, min), max);
+        const mode = per.bipolar_mode || 'per_side';
+        let negScale = 0, posScale = 0;
+        const safe = (v) => { v = Number(v); return (isFinite(v) && v !== 0) ? v : null; };
+        if (mode === 'per_side') {
+          const safeMin = safe(min);
+          const safeMax = safe(max);
+          if (clampedValue < 0 && safeMin !== null && min < 0) {
+            negScale = Math.min(Math.abs(clampedValue / min), 1);
+          } else if (clampedValue > 0 && safeMax !== null && max > 0) {
+            posScale = Math.min(clampedValue / max, 1);
+          }
+        } else {
+          const maxAbs = Math.max(Math.abs(min || 0), Math.abs(max || 0), 1e-9);
+          if (clampedValue < 0) negScale = Math.min(Math.abs(clampedValue) / maxAbs, 1);
+          else if (clampedValue > 0) posScale = Math.min(clampedValue / maxAbs, 1);
+        }
+
+        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        this._scheduleRowUpdate(i, newState);
+      } else {
+        const percent = this._calculatePercentWithConfig(rawValue, per) / 100;
+        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        this._scheduleRowUpdate(i, newState);
+      }
     }
-
-    // Standard mode
-    const percent = this._calculatePercent(rawValue) / 100; // 0..1 for scaleX
-
-    const newState = {
-      modeBipolar: false,
-      percent,
-      fillColor,
-      displayName,
-      formattedValueWithUnit,
-      icon,
-      iconColor,
-      rawValue
-    };
-
-    this._scheduleStateUpdate(newState);
   }
 
   /***************************
@@ -540,8 +589,37 @@ class SimpleBarCard extends HTMLElement {
     });
   }
 
+  // Schedule a single row update (batched via rAF)
+  _scheduleRowUpdate(index, state) {
+    this._pendingRowStates[index] = Object.assign({}, this._pendingRowStates[index] || {}, state);
+    if (this._rowUpdateScheduled) return;
+    this._rowUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this._rowUpdateScheduled = false;
+      const pending = this._pendingRowStates;
+      this._pendingRowStates = {};
+      for (const [idxStr, s] of Object.entries(pending)) {
+        const idx = Number(idxStr);
+        this._applyStateRow(idx, s);
+      }
+    });
+  }
+
+  _calculatePercentWithConfig(value, cfg) {
+    const min = Number(cfg.min ?? this._config.min);
+    const max = Number(cfg.max ?? this._config.max);
+    if (max === min) return 0;
+    let percent = ((value - min) / (max - min)) * 100;
+    return Math.min(Math.max(percent, 0), 100);
+  }
+
   _applyState(state) {
     if (!state) return;
+    // If per-row rendering is active, route single-state updates to row 0
+    if (this._rowEls && this._rowEls.length) {
+      this._applyStateRow(0, state);
+      return;
+    }
 
     // Short-circuit if nothing changed (compare relevant fields)
     const last = this._lastState;
@@ -652,6 +730,90 @@ class SimpleBarCard extends HTMLElement {
     } catch (e) {}
   }
 
+  // Apply state to a specific row index using the cached row elements
+  _applyStateRow(index, state) {
+    if (!state) return;
+    const rowEls = this._rowEls[index];
+    const last = this._lastStateRows[index] || {};
+
+    // Mode switch
+    if (state.modeBipolar !== last.modeBipolar) {
+      if (state.modeBipolar) {
+        rowEls.barFillEl.style.display = 'none';
+        rowEls.barFillNegEl.style.display = '';
+        rowEls.barFillPosEl.style.display = '';
+        rowEls.zeroLineEl.style.display = '';
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
+      } else {
+        rowEls.barFillEl.style.display = '';
+        rowEls.barFillNegEl.style.display = 'none';
+        rowEls.barFillPosEl.style.display = 'none';
+        rowEls.zeroLineEl.style.display = 'none';
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent || 0})`;
+      }
+      last.modeBipolar = state.modeBipolar;
+    }
+
+    // Icon
+    if (state.icon !== last.icon) {
+      if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
+      else rowEls.iconEl.removeAttribute('icon');
+      last.icon = state.icon;
+    }
+
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
+      else rowEls.iconEl.style.removeProperty('color');
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
+      } catch (e) {}
+      last.iconColor = state.iconColor;
+    }
+
+    // Label
+    if (state.displayName !== last.displayName) {
+      rowEls.labelEl.textContent = state.displayName;
+      last.displayName = state.displayName;
+    }
+
+    // Value
+    if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
+      rowEls.valueEl.textContent = state.formattedValueWithUnit;
+      last.formattedValueWithUnit = state.formattedValueWithUnit;
+    }
+
+    // Fill color (set on the row root so --bar-fill-color applies)
+    if (state.fillColor !== last.fillColor) {
+      rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
+      last.fillColor = state.fillColor;
+    }
+
+    // Transforms for scales/percent
+    if (state.modeBipolar) {
+      if (state.negScale !== last.negScale) {
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale})`;
+        last.negScale = state.negScale;
+      }
+      if (state.posScale !== last.posScale) {
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale})`;
+        last.posScale = state.posScale;
+      }
+      last.percent = undefined;
+    } else {
+      if (state.percent !== last.percent) {
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent})`;
+        last.percent = state.percent;
+      }
+      last.negScale = undefined;
+      last.posScale = undefined;
+    }
+
+    last.rawValue = state.rawValue;
+    this._lastStateRows[index] = last;
+  }
+
   /***************************
    * Hilfsmethoden & Utilities
    ***************************/
@@ -674,10 +836,10 @@ class SimpleBarCard extends HTMLElement {
     return this._config.name || stateObj.attributes.friendly_name || this._config.entity;
   }
 
-  _getColorForValue(value) {
-    const thresholds = this._config.color_thresholds;
+  _getColorForValue(value, cfg) {
+    const thresholds = (cfg && cfg.color_thresholds) || this._config.color_thresholds;
     if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
-      return this._config.bar_fill_color || '#3b82f6';
+      return (cfg && cfg.bar_fill_color) || this._config.bar_fill_color || '#3b82f6';
     }
     for (const threshold of thresholds) {
       if (value <= threshold.value) {
@@ -713,9 +875,9 @@ class SimpleBarCard extends HTMLElement {
     }
   }
 
-  _formatValue(value, stateObj) {
-    const decimals = ('decimals' in this._config) ? Number(this._config.decimals) : 0;
-    const unit = this._config.unit || stateObj.attributes.unit_of_measurement || '';
+  _formatValue(value, stateObj, cfg) {
+    const decimals = ('decimals' in (cfg || this._config)) ? Number((cfg || this._config).decimals) : 0;
+    const unit = (cfg && cfg.unit) || this._config.unit || stateObj.attributes.unit_of_measurement || '';
     const formattedValue = Number(value).toFixed(decimals);
     return unit ? `${formattedValue} ${unit}` : formattedValue;
   }
