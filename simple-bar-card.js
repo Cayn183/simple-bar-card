@@ -468,6 +468,9 @@ class SimpleBarCard extends HTMLElement {
             const suffix = `_${i}`;
             if (k.endsWith(suffix)) {
               const baseKey = k.slice(0, -suffix.length);
+              // Do not allow per-entity visibility toggles via suffixed keys.
+              // icon_show and value_show are global toggles applied to all rows.
+              if (baseKey === 'icon_show' || baseKey === 'value_show') continue;
               per[baseKey] = this._config[k];
             }
           }
@@ -523,6 +526,13 @@ class SimpleBarCard extends HTMLElement {
     } else {
       this.removeAttribute('no-value');
     }
+
+    // Remove any per-entity icon_show/value_show flags so visibility is only
+    // controlled globally via this._config.icon_show / this._config.value_show.
+    for (const per of this._entities) {
+      if ('icon_show' in per) delete per.icon_show;
+      if ('value_show' in per) delete per.value_show;
+    }
   }
 
   /***************************
@@ -558,9 +568,9 @@ class SimpleBarCard extends HTMLElement {
       const formattedValueWithUnit = this._formatValue(rawValue, stateObj, per);
       const fillColor = this._getColorForValue(rawValue, per) || per.bar_fill_color || '#3b82f6';
 
-      // Icon handling per entity
+      // Icon handling per entity. Visibility is global via this._config.icon_show
       let icon;
-      if (per.icon_show === false) {
+      if (this._config.icon_show === false) {
         icon = undefined;
       } else {
         icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
