@@ -76,7 +76,7 @@ class SimpleBarCard extends HTMLElement {
           align-items: center;
           justify-content: center;
           /* prefer explicit config, otherwise HA theme color */
-          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6));
+          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #fff));
           box-sizing: border-box;
         }
         .ha-icon.bar-icon {
@@ -86,7 +86,7 @@ class SimpleBarCard extends HTMLElement {
           margin: 0 auto;
           line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
           padding: 0;
-          color: var(--icon-color, var(--paper-item-icon-color, #fff));
+          color: var(--icon-color, var(--paper-item-icon-color, rgba(0,0,0,0.08));
         }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -192,6 +192,14 @@ class SimpleBarCard extends HTMLElement {
           font-weight: var(--value-font-weight, 400); /* normal or bold */
           text-align: center;
           transform: translateY(12px);
+        }
+        /* When the icon area is disabled via config (icon: false), hide the icon
+           column and remove the left margin so the main content shifts left. */
+        :host([no-icon]) .icon-container {
+          display: none;
+        }
+        :host([no-icon]) .main-container {
+          margin-left: 0;
         }
       </style>
       <style>
@@ -360,6 +368,15 @@ class SimpleBarCard extends HTMLElement {
           break;
         }
       }
+    }
+
+    // Icon visibility: support `icon: false` to remove the icon column and let
+    // the bar content shift left. If `icon` is a string, it will be used as the
+    // icon name. We only treat the boolean false as 'hide icon'.
+    if (this._config.icon === false) {
+      this.setAttribute('no-icon', '');
+    } else {
+      this.removeAttribute('no-icon');
     }
   }
 
