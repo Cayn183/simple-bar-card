@@ -75,8 +75,8 @@ class SimpleBarCard extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          /* prefer explicit config, otherwise HA theme color */
-          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #fff));
+          /* prefer explicit config, otherwise transparent so underlying background shows through */
+          background-color: var(--icon-bg-color, transparent);
           box-sizing: border-box;
         }
           .ha-icon.bar-icon {
@@ -233,7 +233,7 @@ class SimpleBarCard extends HTMLElement {
           }
 
           .icon-circle {
-            background-color: var(--icon-bg-color-dark, var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6)));
+            background-color: var(--icon-bg-color-dark, var(--icon-bg-color, transparent));
           }
 
           .label {
@@ -245,7 +245,7 @@ class SimpleBarCard extends HTMLElement {
           }
 
           .ha-icon.bar-icon {
-            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, #fff)));
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, #3b82f6)));
           }
         }
       </style>
@@ -444,9 +444,9 @@ class SimpleBarCard extends HTMLElement {
       icon = (this._config.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
     }
 
-    // Inline icon color (overrides CSS variable when provided). If not set,
-    // leave undefined so CSS variables control the color (default #000).
-    const iconColor = (this._config.icon_color !== undefined) ? this._config.icon_color : undefined;
+  // Inline icon color (overrides CSS variable when provided). If not set,
+  // leave undefined so CSS variables control the color (default #3b82f6).
+  const iconColor = (this._config.icon_color !== undefined) ? this._config.icon_color : undefined;
 
     // Mode handling (bipolar with mode option: 'per_side' (default) | 'symmetric')
     if (this._config.bipolar) {
