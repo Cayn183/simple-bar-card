@@ -79,15 +79,15 @@ class SimpleBarCard extends HTMLElement {
           background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, #fff));
           box-sizing: border-box;
         }
-        .ha-icon.bar-icon {
-          width: 35px;
-          height: 35px;
-          display: block;
-          margin: 0 auto;
-          line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
-          padding: 0;
-          color: var(--icon-color, var(--paper-item-icon-color, #000000ff);
-        }
+          .ha-icon.bar-icon {
+            width: 35px;
+            height: 35px;
+            display: block;
+            margin: 0 auto;
+            line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
+            padding: 0;
+            color: var(--icon-color, var(--paper-item-icon-color, #000));
+          }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
           display: block;
@@ -304,6 +304,7 @@ class SimpleBarCard extends HTMLElement {
       min: 0,
       max: 100,
       bipolar: false,
+      icon: true, // default: show icon column
       ...config
     };
 
@@ -411,8 +412,20 @@ class SimpleBarCard extends HTMLElement {
     const displayName = this._calculateDisplayName(stateObj);
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
     const fillColor = this._getColorForValue(rawValue) || this._config.bar_fill_color || '#3b82f6';
-    const icon = this._config.icon || stateObj.attributes.icon || this._config.icon || 'mdi:chart-bar';
-    const iconColor = this._config.icon_color || stateObj.attributes.entity_picture ? undefined : (this._config.icon_color || 'var(--paper-item-icon-color, #fff)');
+
+    // Icon handling: if config.icon === false we hide the icon column and
+    // don't set an icon; otherwise prefer explicit config.icon, then entity
+    // attribute, then a sensible default.
+    let icon;
+    if (this._config.icon === false) {
+      icon = undefined;
+    } else {
+      icon = (this._config.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
+    }
+
+    // Inline icon color (overrides CSS variable when provided). If not set,
+    // leave undefined so CSS variables control the color (default #000).
+    const iconColor = (this._config.icon_color !== undefined) ? this._config.icon_color : undefined;
 
     // Mode handling (bipolar with mode option: 'per_side' (default) | 'symmetric')
     if (this._config.bipolar) {
@@ -533,11 +546,16 @@ class SimpleBarCard extends HTMLElement {
 
     // Update icon if changed
     if (state.icon !== last.icon) {
-      this._iconEl.setAttribute('icon', state.icon);
+      if (state.icon) {
+        this._iconEl.setAttribute('icon', state.icon);
+      } else {
+        this._iconEl.removeAttribute('icon');
+      }
       last.icon = state.icon;
     }
+
     if (state.iconColor !== last.iconColor) {
-      if (state.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         this._iconEl.style.color = state.iconColor;
       } else {
         this._iconEl.style.removeProperty('color');
