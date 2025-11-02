@@ -27,14 +27,9 @@ max: 100
 
 ### Important config keys (EN)
 
-- entity (required)
-- min, max
-- name (override label)
-- bipolar (boolean)
-- bipolar_mode: 'per_side' | 'symmetric'
-- color_thresholds: [{ value, color }, ...]
  - icon: string — set to an icon name (e.g. `mdi:chart-bar`) to show an icon.
  - icon_show: boolean — set to `false` to hide the icon area and let the bar shift left (default: true).
+ - value_show: boolean — show the numeric value column when true (default) or hide it when false.
 
 Visual / theme-related (aliases supported):
 

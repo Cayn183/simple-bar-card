@@ -108,7 +108,7 @@ class SimpleBarCard extends HTMLElement {
           font-weight: 600;
           color: var(--label-color, var(--primary-text-color, inherit));
           font-size: 13px;
-          transform: translateX(12px);
+          transform: translateX(8px);
         }
 
         /* Standard bar background (holds fills) */
@@ -201,6 +201,14 @@ class SimpleBarCard extends HTMLElement {
         }
         :host([no-icon]) .main-container {
           margin-left: 0;
+        }
+        /* When the value area is disabled via config (value_show: false), hide
+           the value column and remove the right gap so the bar fills the space. */
+        :host([no-value]) .value-container {
+          display: none;
+        }
+        :host([no-value]) .bar-background {
+          margin-right: 0;
         }
       </style>
       <style>
@@ -305,8 +313,10 @@ class SimpleBarCard extends HTMLElement {
       min: 0,
       max: 100,
       bipolar: false,
-      // `icon_show` controls whether the icon column is visible. Default: true.
-      icon_show: true,
+  // `icon_show` controls whether the icon column is visible. Default: true.
+  icon_show: true,
+  // `value_show` controls whether the numeric value column is visible. Default: true.
+  value_show: true,
       ...config
     };
 
@@ -380,6 +390,14 @@ class SimpleBarCard extends HTMLElement {
       this.setAttribute('no-icon', '');
     } else {
       this.removeAttribute('no-icon');
+    }
+
+    // Value visibility: support `value_show: false` to hide the numeric value
+    // column and let the bar fill the space to the right. Default is true.
+    if (this._config.value_show === false) {
+      this.setAttribute('no-value', '');
+    } else {
+      this.removeAttribute('no-value');
     }
   }
 
