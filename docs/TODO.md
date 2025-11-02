@@ -10,24 +10,43 @@ Use it as the single source of truth for near-term work. Each item shows: priori
 ---
 
 ## NEXT / Priority P0
-- [ ] (P0) Finalize README examples and wording — Status: In progress — Owner: @you — Files: `README.md`, `examples/`  
+- [ ] (P0) Unit tests for percent & bipolar math — Status: not started — Owner: @assistant — Files: `tests/` or `tools/`  
+  Short: add a small test harness for percent calculations, bipolar modes and color threshold resolution (cover edge cases).
+
+- [ ] (P0) Improve config validation & runtime errors — Status: not started — Owner: @assistant — Files: `simple-bar-card.js`  
+  Short: provide friendly in-card error messages for invalid configs instead of runtime exceptions.
+
+- [ ] (P0) Finalize README examples and wording — Status: in progress — Owner: @you — Files: `README.md`, `examples/`  
   Short: polish examples, ensure bilingual parity and copyable YAML.
 
-- [ ] (P0) Add examples to Lovelace and smoke-test visuals — Status: not started — Owner: @you — Files: `examples/*`  
+- [ ] (P0) Smoke-test examples in Lovelace — Status: not started — Owner: @you — Files: `examples/*`  
   Short: paste `examples/*` into Lovelace to verify layout, icons, and theme behavior.
-
-- [ ] (P0) Add `docs/usage.md` technical notes — Status: in progress — Owner: @assistant — Files: `docs/usage.md`  
-  Short: document inheritance rules, global toggles, and where to find examples.
 
 ## IN PROGRESS
 - [ ] (P1) Decide repo restructuring & maintenance workflow — Status: in progress — Owner: @you/@assistant  
   Short: lightweight `docs/`, `examples/` created; decide if `.github/` templates or GitHub Issues/Project will be used.
 
+- [ ] (P1) Implement bar animation option (configurable) — Status: not started — Owner: @assistant — Files: `simple-bar-card.js`  
+  Short: add config for animations, respect prefers-reduced-motion, test performance.
+
+- [ ] (P1) Decide Card Editor approach (schema vs full editor) — Status: not started — Owner: @you/@assistant  
+  Short: pick lightweight JSON schema or full Lovelace editor implementation and plan next steps.
+
 ## BACKLOG / Priority P2
+- [ ] (P2) Add examples screenshots and compatibility sweep — Status: not started — Owner: @you  
+  Short: capture screenshots across themes and document browser/HA compatibility.
+
+- [ ] (P2) Simple local test script / smoke tests — Status: not started — Owner: @assistant  
+  Short: provide node script to emulate `hass` and run quick smoke checks.
+
+- [ ] (P2) Performance micro‑optimizations & rAF review — Status: not started — Owner: @assistant  
+  Short: ensure rAF batching and minimal DOM writes; measure on low-end devices.
+
 - [ ] (P2) Create GitHub Issues and Project Board for collaboration — Status: not started — Owner: @you  
   Short: export high-priority items into Issues and track via Project when collaboration increases.
 
 - [ ] (P2) Add contribution guide & issue templates (`.github/CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE`) — Status: not started — Owner: @you  
+  Short: basic templates to guide contributors.
 
 ## DONE (historical)
 - [x] (P0) Multi-entity skeleton (up to 5 rows) — Files: `simple-bar-card.js`
@@ -36,6 +55,12 @@ Use it as the single source of truth for near-term work. Each item shows: priori
 - [x] (P0) Icon color SVG fallback handling — Files: `simple-bar-card.js`
 - [x] (P0) Make `icon_show` and `value_show` global — Files: `simple-bar-card.js`
 - [x] (P1) README bilingual update (initial) — Files: `README.md`
+
+---
+
+Additional notes:
+- The listed items are intentionally compact; when you approve the set I can split larger items (Card Editor) into sub‑tasks with estimates and milestones.
+
 
 ---
 
