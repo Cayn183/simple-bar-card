@@ -642,6 +642,14 @@ class SimpleBarCard extends HTMLElement {
 
     // store rawValue
     last.rawValue = state.rawValue;
+
+    // Always force SVG fill to match computed color after every update (covers theme changes)
+    try {
+      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+        ? state.iconColor
+        : window.getComputedStyle(this._iconEl).color;
+      this._applyInnerSvgColor(this._iconEl, desired);
+    } catch (e) {}
   }
 
   /***************************
