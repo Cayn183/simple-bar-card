@@ -304,7 +304,8 @@ class SimpleBarCard extends HTMLElement {
       min: 0,
       max: 100,
       bipolar: false,
-      icon: true, // default: show icon column
+      // `icon_show` controls whether the icon column is visible. Default: true.
+      icon_show: true,
       ...config
     };
 
@@ -371,10 +372,10 @@ class SimpleBarCard extends HTMLElement {
       }
     }
 
-    // Icon visibility: support `icon: false` to remove the icon column and let
-    // the bar content shift left. If `icon` is a string, it will be used as the
-    // icon name. We only treat the boolean false as 'hide icon'.
-    if (this._config.icon === false) {
+    // Icon visibility: support `icon_show: false` to remove the icon column and
+    // let the bar content shift left. `icon` (string) is used only as the
+    // icon name when present; `icon_show` controls visibility independently.
+    if (this._config.icon_show === false) {
       this.setAttribute('no-icon', '');
     } else {
       this.removeAttribute('no-icon');
@@ -413,11 +414,12 @@ class SimpleBarCard extends HTMLElement {
     const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
     const fillColor = this._getColorForValue(rawValue) || this._config.bar_fill_color || '#3b82f6';
 
-    // Icon handling: if config.icon === false we hide the icon column and
-    // don't set an icon; otherwise prefer explicit config.icon, then entity
+    // Icon handling: the `icon` config is the icon name (string). Visibility
+    // is controlled separately by `icon_show` (boolean). If icon_show is
+    // false we omit the icon; otherwise prefer config.icon, then entity
     // attribute, then a sensible default.
     let icon;
-    if (this._config.icon === false) {
+    if (this._config.icon_show === false) {
       icon = undefined;
     } else {
       icon = (this._config.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';

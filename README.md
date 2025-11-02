@@ -33,7 +33,8 @@ max: 100
 - bipolar (boolean)
 - bipolar_mode: 'per_side' | 'symmetric'
 - color_thresholds: [{ value, color }, ...]
- - icon: string | false — set to an icon name (e.g. `mdi:chart-bar`) to show an icon, or `false` to hide the icon area and let the bar shift left.
+ - icon: string — set to an icon name (e.g. `mdi:chart-bar`) to show an icon.
+ - icon_show: boolean — set to `false` to hide the icon area and let the bar shift left (default: true).
 
 Visual / theme-related (aliases supported):
 
@@ -49,7 +50,8 @@ Visual / theme-related (aliases supported):
 - `value_bold` (boolean)
 
 UI visibility
-- `icon` (string)|false — show an icon (string) or hide the icon area (false)
+- `icon` (string) — icon name to display (e.g. `mdi:chart-bar`)
+- `icon_show` (boolean) — show the icon column when true (default) or hide it when false
 
 Note: CSS variables are applied to both the host and to the internal `.container` element to improve reliability across host-scoped and media-query scoped styles.
 
