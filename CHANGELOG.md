@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. Entries are listed in reverse chronological order.
 
+## [v0.2.0-beta] - 2025-11-02
+
+Summary
+- Multi-entity support, heading area, global visibility toggles and improved theming.
+
+Highlights
+- Added multi-entity rendering: up to 5 stacked rows in a single card.
+- Optional heading area above the entities (`heading_show`, `heading`).
+- Global visibility toggles: `icon_show` and `value_show` now apply to all rows (per-entity `icon_show_2` / `value_show_2` are ignored).
+- Improved theme and dark-mode compatibility via explicit `--*-dark` CSS variables and better fallbacks to HA theme variables.
+- Per-entity overrides via `entities` array or suffixed keys (`entity_2`, `min_2`, `icon_3`, etc.).
+- Icon color handling improved by setting inner SVG fills when necessary to respect theme/icon_color.
+
+Notes
+- Maximum of 5 entities is enforced; providing more will throw an error.
+- DOM structure changed to support multiple rows; consumers that query the shadow DOM should update selectors if needed.
+
 ## [v0.1.4-beta] - 2025-11-02
 
 Summary
