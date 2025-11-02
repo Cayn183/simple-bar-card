@@ -312,60 +312,55 @@ class SimpleBarCard extends HTMLElement {
       }
     };
 
-    // Support multiple possible config keys for backward-compatibility / user typos
-    const bg = this._config.card_background_color ?? this._config.card_background ?? this._config.card_background;
-    setIf('--card-background-color', bg);
+    // Normalize configuration keys using a canonical naming scheme and many aliases
+    // This keeps setConfig concise and makes it easy to add new canonical keys later.
 
-    const borderColor = this._config.card_border_color ?? this._config.card_border;
-    setIf('--card-border-color', borderColor);
+    const aliasMap = {
+      '--card-background-color': ['card_background_color', 'card_background'],
+      '--card-border-color': ['card_border_color', 'card_border'],
+      '--card-border-radius': ['card_border_radius', 'card_border_radius_px'],
+      '--bar-background-color': ['bar_background_color', 'bar_background'],
+      '--icon-bg-color': ['icon_bg_color', 'icon_bg'],
+      '--label-color': ['label_color', 'labelColor'],
+      '--value-color': ['value_color', 'valueColor'],
+      '--bar-fill-color': ['bar_fill_color', 'bar_fill_color_hex', 'barFillColor'],
+      '--icon-color': ['icon_color', 'iconColor']
+    };
 
-    const borderRadius = this._config.card_border_radius ?? this._config.card_border_radius_px;
-    setIf('--card-border-radius', borderRadius);
-
-    const barBg = this._config.bar_background_color ?? this._config.bar_background;
-    setIf('--bar-background-color', barBg);
-
-    const iconBg = this._config.icon_bg_color ?? this._config.icon_bg;
-    setIf('--icon-bg-color', iconBg);
-
-    const labelColor = this._config.label_color ?? this._config.labelColor;
-    setIf('--label-color', labelColor);
-
-    const valueColor = this._config.value_color ?? this._config.valueColor;
-    setIf('--value-color', valueColor);
+    for (const [cssVar, keys] of Object.entries(aliasMap)) {
+      for (const k of keys) {
+        if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
+          setIf(cssVar, this._config[k]);
+          break;
+        }
+      }
+    }
 
     // value font weight still allowed via config boolean
     const valueWeight = this._config.value_bold ? '700' : '400';
     this.style.setProperty('--value-font-weight', valueWeight);
     if (this._containerEl) this._containerEl.style.setProperty('--value-font-weight', valueWeight);
 
-    // bar fill color
-    const barFill = this._config.bar_fill_color ?? this._config.bar_fill_color_hex ?? this._config.barFillColor;
-    setIf('--bar-fill-color', barFill);
-    // dark-mode specific variables (optional) — support explicit dark variants for each visual setting
-    const bgDark = this._config.card_background_dark ?? this._config.cardBackgroundDark ?? this._config.card_backgroundDark;
-    setIf('--card-background-dark', bgDark);
+    // Dark-mode alias map (per-property dark variants)
+    const darkAliasMap = {
+      '--card-background-dark': ['card_background_color_dark', 'card_background_dark', 'cardBackgroundDark'],
+      '--card-border-color-dark': ['card_border_color_dark', 'card_border_dark', 'cardBorderColorDark'],
+      '--bar-background-color-dark': ['bar_background_color_dark', 'bar_background_dark', 'barBackgroundColorDark'],
+      '--icon-bg-color-dark': ['icon_bg_color_dark', 'icon_bg_dark', 'iconBgColorDark'],
+      '--label-color-dark': ['label_color_dark', 'labelColorDark'],
+      '--value-color-dark': ['value_color_dark', 'valueColorDark'],
+      '--bar-fill-color-dark': ['bar_fill_color_dark', 'bar_fill_dark', 'barFillColorDark'],
+      '--icon-color-dark': ['icon_color_dark', 'iconColorDark']
+    };
 
-    const borderColorDark = this._config.card_border_color_dark ?? this._config.card_border_dark_dark ?? this._config.cardBorderColorDark;
-    setIf('--card-border-color-dark', borderColorDark);
-
-    const barBgDark = this._config.bar_background_color_dark ?? this._config.bar_background_dark ?? this._config.barBackgroundColorDark;
-    setIf('--bar-background-color-dark', barBgDark);
-
-    const iconBgDark = this._config.icon_bg_color_dark ?? this._config.icon_bg_dark ?? this._config.iconBgColorDark;
-    setIf('--icon-bg-color-dark', iconBgDark);
-
-    const labelColorDark = this._config.label_color_dark ?? this._config.labelColorDark;
-    setIf('--label-color-dark', labelColorDark);
-
-    const valueColorDark = this._config.value_color_dark ?? this._config.valueColorDark;
-    setIf('--value-color-dark', valueColorDark);
-
-    const barFillDark = this._config.bar_fill_color_dark ?? this._config.bar_fill_dark ?? this._config.barFillColorDark;
-    setIf('--bar-fill-color-dark', barFillDark);
-
-    const iconColorDark = this._config.icon_color_dark ?? this._config.iconColorDark;
-    setIf('--icon-color-dark', iconColorDark);
+    for (const [cssVar, keys] of Object.entries(darkAliasMap)) {
+      for (const k of keys) {
+        if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
+          setIf(cssVar, this._config[k]);
+          break;
+        }
+      }
+    }
   }
 
   /***************************

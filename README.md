@@ -64,6 +64,43 @@ bar_fill_color: 'dodgerblue'
 bar_fill_color_dark: '#1e90ff'
 ```
 
+### Canonical keys & aliases
+
+The card accepts a set of canonical snake_case config keys. For backwards compatibility we also accept common aliases (camelCase, short forms). Below are the canonical keys we recommend and the aliases that are accepted and normalized by `setConfig()`.
+
+Light variants (canonical -> aliases accepted):
+
+```
+card_background_color          <- card_background_color | card_background
+card_border_color              <- card_border_color | card_border
+card_border_radius_px         <- card_border_radius | card_border_radius_px
+
+bar_background_color          <- bar_background_color | bar_background
+bar_fill_color                <- bar_fill_color | bar_fill_color_hex | barFillColor
+
+icon_bg_color                 <- icon_bg_color | icon_bg
+icon_color                    <- icon_color | iconColor
+
+label_color                   <- label_color | labelColor
+value_color                   <- value_color | valueColor
+value_bold                    <- value_bold
+```
+
+Dark variants (canonical -> aliases accepted):
+
+```
+card_background_color_dark     <- card_background_color_dark | card_background_dark | cardBackgroundDark
+card_border_color_dark         <- card_border_color_dark | card_border_dark | cardBorderColorDark
+bar_background_color_dark      <- bar_background_color_dark | bar_background_dark | barBackgroundColorDark
+bar_fill_color_dark            <- bar_fill_color_dark | bar_fill_dark | barFillColorDark
+icon_bg_color_dark             <- icon_bg_color_dark | icon_bg_dark | iconBgColorDark
+icon_color_dark                <- icon_color_dark | iconColorDark
+label_color_dark               <- label_color_dark | labelColorDark
+value_color_dark               <- value_color_dark | valueColorDark
+```
+
+Recommended: use the canonical snake_case names in your configs; aliases will continue to work but may be removed in future major versions.
+
 ### Quick browser test (EN)
 
 Open the browser console on a Home Assistant page where `ha-icon` is available and run:
