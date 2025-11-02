@@ -195,176 +195,40 @@ class SimpleBarCard extends HTMLElement {
         }
       </style>
       <style>
-        /* Dark-mode: allow an explicit --card-background-dark variable to override
-           the regular background when prefers-color-scheme: dark. This lets users
-           supply a specific dark background via config.card_background_dark.
+        /* Dark-mode: allow explicit dark-mode variables for all visual properties.
+           Each visual variable supports a dark counterpart (e.g. --card-background-dark)
+           which will be preferred when prefers-color-scheme: dark.
         */
         @media (prefers-color-scheme: dark) {
           .container {
-            background-color: var(--card-background-dark, var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(0,0,0,0.08)))));
+            background-color: var(--card-background-dark, var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(40,40,40,1)))));
+            border: 1px solid var(--card-border-color-dark, var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #444))));
           }
-        }
-      </style>
-      <style>
-        /* Bubble style duplicate: full copy of the standard styles but scoped to
-           :host([bubble-style]) so you can edit these independently later. The
-           rules intentionally mirror the main styles above.
-        */
 
-        :host([bubble-style]) {
-          display: block;
-        }
+          .bar-background {
+            background-color: var(--bar-background-color-dark, var(--bar-background-color, rgba(255,255,255,0.06)));
+          }
 
-        :host([bubble-style]) .container {
-          font-family: sans-serif;
-          width: 100%;
-          padding: 8px;
-          box-sizing: border-box;
-          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(0,0,0,0.15))));
-          //border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
-          border-radius: var(--card-border-radius, 12px);
-          display: flex;
-          align-items: center;
-        }
+          .bar-fill,
+          .bar-fill-negative,
+          .bar-fill-positive {
+            background-color: var(--bar-fill-color-dark, var(--bar-fill-color, var(--primary-color, #3b82f6)));
+          }
 
-        :host([bubble-style]) .icon-container {
-          width: 50px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
+          .icon-circle {
+            background-color: var(--icon-bg-color-dark, var(--icon-bg-color, var(--paper-item-icon-active-color, #3b82f6)));
+          }
 
-        :host([bubble-style]) .icon-circle {
-          width: 45px;
-          height: 45px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: var(--icon-bg-color, var(--paper-item-icon-active-color, white));
-          box-sizing: border-box;
-        }
+          .label {
+            color: var(--label-color-dark, var(--label-color, var(--primary-text-color, inherit)));
+          }
 
-        :host([bubble-style]) .ha-icon.bar-icon {
-          width: 35px;
-          height: 35px;
-          display: block;
-          margin: 0 auto;
-          line-height: 0;
-          padding: 0;
-          color: var(--icon-color, var(--paper-item-icon-color, #6e6c6cff));
-        }
+          .value {
+            color: var(--value-color-dark, var(--value-color, var(--secondary-text-color, inherit)));
+          }
 
-        :host([bubble-style]) .ha-icon.bar-icon::part(svg) {
-          display: block;
-          width: 100%;
-          height: 100%;
-        }
-
-        :host([bubble-style]) .main-container {
-          flex-grow: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          margin-left: 12px;
-        }
-
-        :host([bubble-style]) .label {
-          margin-bottom: 6px;
-          font-weight: 600;
-          color: var(--label-color, var(--primary-text-color, inherit));
-          font-size: 14px;
-        }
-
-        :host([bubble-style]) .bar-row {
-          display: flex;
-          align-items: center;
-        }
-
-        :host([bubble-style]) .bar-background {
-          position: relative;
-          flex-grow: 1;
-          height: 24px;
-          background-color: var(--bar-background-color, rgba(0,0,0,0.25));
-          border-radius: 12px;
-          overflow: hidden;
-          margin-right: 12px;
-        }
-
-        :host([bubble-style]) .bar-fill {
-          position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 0;
-          width: 100%;
-          transform-origin: left;
-          transform: scaleX(0);
-          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
-          border-radius: 12px 6px 6px 12px;
-          transition: transform 300ms ease;
-          will-change: transform;
-        }
-
-        :host([bubble-style]) .bar-fill-negative,
-        :host([bubble-style]) .bar-fill-positive {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 50%;
-          transition: transform 300ms ease;
-          will-change: transform;
-          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
-        }
-
-        :host([bubble-style]) .bar-fill-negative {
-          right: 50%;
-          transform-origin: right;
-          border-radius: 6px 0 0 6px;
-        }
-
-        :host([bubble-style]) .bar-fill-positive {
-          left: 50%;
-          transform-origin: left;
-          border-radius: 0 6px 6px 0;
-        }
-
-        :host([bubble-style]) .zero-line {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          left: 50%;
-          width: 2px;
-          background-color: var(--card-border-color, var(--divider-color, #ccc));
-          transform: translateX(-50%);
-          z-index: 2;
-        }
-
-        :host([bubble-style]) .value-container {
-          width: 60px;
-          display: flex;
-          justify-content: center;
-          align-items: flex-end;
-          white-space: nowrap;
-          margin-left: 8px;
-          height: 24px;
-          box-sizing: border-box;
-        }
-
-        :host([bubble-style]) .value {
-          min-width: 50px;
-          font-size: 14px;
-          color: var(--value-color, var(--secondary-text-color, inherit));
-          font-weight: var(--value-font-weight, 400);
-          text-align: center;
-          transform: translateY(12px);
-        }
-
-        /* Bubble-style dark-mode: prefer explicit --card-background-dark, then --card-background-color,
-           then fall back to the previous rgba(40,40,40,1).
-        */
-        @media (prefers-color-scheme: dark) {
-          :host([bubble-style]) .container {
-            background-color: var(--card-background-dark, var(--card-background-color, rgba(40,40,40,1)));
+          .ha-icon.bar-icon {
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, #fff)));
           }
         }
       </style>
@@ -435,10 +299,10 @@ class SimpleBarCard extends HTMLElement {
       ...config
     };
 
-    // Apply only explicitly provided config-controlled CSS variables.
-    // Preserve Home Assistant themes when no custom color is given.
-    // Use aliases and set variables on the host and on the container (if present)
-    // to ensure :host([bubble-style]) and media queries see them reliably.
+  // Apply only explicitly provided config-controlled CSS variables.
+  // Preserve Home Assistant themes when no custom color is given.
+  // Use aliases and set variables on the host and on the container (if present)
+  // to ensure host-level and media-query-scoped styles see them reliably.
     const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
         try {
@@ -478,13 +342,30 @@ class SimpleBarCard extends HTMLElement {
     // bar fill color
     const barFill = this._config.bar_fill_color ?? this._config.bar_fill_color_hex ?? this._config.barFillColor;
     setIf('--bar-fill-color', barFill);
+    // dark-mode specific variables (optional) — support explicit dark variants for each visual setting
+    const bgDark = this._config.card_background_dark ?? this._config.cardBackgroundDark ?? this._config.card_backgroundDark;
+    setIf('--card-background-dark', bgDark);
 
-  // dark-mode specific background (optional)
-  const bgDark = this._config.card_background_dark ?? this._config.cardBackgroundDark ?? this._config.card_backgroundDark;
-  setIf('--card-background-dark', bgDark);
+    const borderColorDark = this._config.card_border_color_dark ?? this._config.card_border_dark_dark ?? this._config.cardBorderColorDark;
+    setIf('--card-border-color-dark', borderColorDark);
 
-    // Note: bubble-style attribute should be toggled regardless of container build order
-    if (this._config.bubble_style) this.setAttribute('bubble-style', ''); else this.removeAttribute('bubble-style');
+    const barBgDark = this._config.bar_background_color_dark ?? this._config.bar_background_dark ?? this._config.barBackgroundColorDark;
+    setIf('--bar-background-color-dark', barBgDark);
+
+    const iconBgDark = this._config.icon_bg_color_dark ?? this._config.icon_bg_dark ?? this._config.iconBgColorDark;
+    setIf('--icon-bg-color-dark', iconBgDark);
+
+    const labelColorDark = this._config.label_color_dark ?? this._config.labelColorDark;
+    setIf('--label-color-dark', labelColorDark);
+
+    const valueColorDark = this._config.value_color_dark ?? this._config.valueColorDark;
+    setIf('--value-color-dark', valueColorDark);
+
+    const barFillDark = this._config.bar_fill_color_dark ?? this._config.bar_fill_dark ?? this._config.barFillColorDark;
+    setIf('--bar-fill-color-dark', barFillDark);
+
+    const iconColorDark = this._config.icon_color_dark ?? this._config.iconColorDark;
+    setIf('--icon-color-dark', iconColorDark);
   }
 
   /***************************

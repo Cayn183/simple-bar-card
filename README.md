@@ -1,6 +1,6 @@
 # Simple Bar Card
 
-English and German documentation are provided below. This README has been updated to reflect new features added to the card (bubble-style, improved theming, dark-mode background support and config aliasing).
+English and German documentation are provided below. This README has been updated to reflect new features added to the card (improved theming, dark-mode background support and config aliasing).
 
 ---
 
@@ -11,7 +11,7 @@ The Simple Bar Card is a single-file Home Assistant Lovelace custom card that re
 Key features:
 - Single-file component: just add `simple-bar-card.js` as a Lovelace resource.
 - Theme-friendly: prefers HA theme CSS vars; custom colors are applied only when provided in config.
-- `bubble_style`: an opt-in visual variant that duplicates the normal styles under `:host([bubble-style])` so you can tweak them independently.
+- Editability: most visual options support an explicit dark-mode variant (for example `--card-background-dark`) and corresponding config aliases (see below). This lets you fully customize both light and dark appearances without separate variants.
 - Dark-mode: `card_background_dark` lets you supply an explicit dark-mode background.
 - Bipolar mode: negative/positive split with two half fills and a zero-line.
 - Color thresholds: `color_thresholds` array to pick fill color based on value ranges.
@@ -49,19 +49,19 @@ Visual / theme-related (aliases supported):
 
 Note: CSS variables are applied to both the host and to the internal `.container` element to improve reliability across host-scoped and media-query scoped styles.
 
-### bubble_style (EN)
+### Editability & dark variants (EN)
 
-Set `bubble_style: true` to enable the bubble visual variant. The card toggles the host attribute `bubble-style`. The component contains a full copy of the default styles scoped to `:host([bubble-style])` so you can safely modify shape, radii, shadows, or colors specifically for this variant.
+Most visual configuration options support a matching dark variant. Supply e.g. `card_background_dark`, `bar_fill_color_dark`, `icon_bg_color_dark`, `label_color_dark`, etc., to control the dark-mode appearance specifically. The card also accepts several alias names for backward compatibility (see the Visual / theme-related section above).
 
 Example (EN):
 
 ```yaml
 type: 'custom:simple-bar-card'
 entity: sensor.my_sensor
-bubble_style: true
 card_background_color: 'rgba(255,255,255,0.9)'
 card_background_dark: 'rgba(40,40,40,1)'
 bar_fill_color: 'dodgerblue'
+bar_fill_color_dark: '#1e90ff'
 ```
 
 ### Quick browser test (EN)
@@ -71,9 +71,8 @@ Open the browser console on a Home Assistant page where `ha-icon` is available a
 ```js
 const el = document.createElement('simple-bar-card');
 document.body.appendChild(el);
-el.setConfig({ entity: 'sensor.test', min:0, max:100, bubble_style: true, card_background_color: 'rgba(255,200,200,1)', card_background_dark: 'rgba(40,40,40,1)', bar_fill_color: 'dodgerblue' });
+el.setConfig({ entity: 'sensor.test', min:0, max:100, card_background_color: 'rgba(255,200,200,1)', card_background_dark: 'rgba(40,40,40,1)', bar_fill_color: 'dodgerblue' });
 el.hass = { states: { 'sensor.test': { state: '42', attributes: { unit_of_measurement: '%', friendly_name: 'Test' } } } };
-console.log('has bubble-style?', el.hasAttribute('bubble-style'));
 console.log('host --card-background-color:', getComputedStyle(el).getPropertyValue('--card-background-color'));
 const container = el.shadowRoot.querySelector('.container');
 console.log('container computed background:', getComputedStyle(container).backgroundColor);
@@ -91,7 +90,7 @@ Die Simple Bar Card ist eine einzelne JavaScript-Datei für Home Assistant Lovel
 
 - Single-file Web Component — `simple-bar-card.js` als Lovelace-Resource.
 - Theme-freundlich: Falls keine Farben konfiguriert sind, folgen die Stile den HA-Themes.
-- `bubble_style` — opt-in Variante mit eigener CSS-Kopie unter `:host([bubble-style])`.
+- Erweiterte Editierbarkeit: Viele visuelle Optionen unterstützen eine explizite Dark-Mode-Variante (z. B. `--card-background-dark`) und entsprechende Konfigurations-Aliase, damit Sie Erscheinungsbild für Hell/Dunkel getrennt steuern können.
 - Dark-Mode: `card_background_dark` ermöglicht ein explizites dunkles Hintergrund-Fallback.
 - Bipolar-Modus: Negative/Positive Aufteilung mit zwei halben Füllungen und Null-Linie.
 - Farb-Schwellen: `color_thresholds` zur Auswahl der Füllfarbe basierend auf dem Wert.
@@ -137,6 +136,6 @@ color_thresholds:
 
 ## Kurz-Änderungsprotokoll
 
-- vX.Y.Z: `bubble_style`, `card_background_dark`, alias-freundliche Konfigurationsverarbeitung, sowie robustere Anwendung von CSS-Variablen (host + container) hinzugefügt.
+ - vX.Y.Z: removed `bubble_style`; added `card_background_dark` and per-property dark-mode variants, alias-friendly config handling, and more robust application of CSS variables (host + container).
 
 Für Details siehe `simple-bar-card.js`.
