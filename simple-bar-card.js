@@ -104,10 +104,10 @@ class SimpleBarCard extends HTMLElement {
           margin-left: 12px;
         }
         .label {
-          margin-bottom: 6px;
-          font-weight: 600;
+          margin-bottom: 4px;
+          font-weight: 400;
           color: var(--label-color, var(--primary-text-color, inherit));
-          font-size: 14px;
+          font-size: 12px;
         }
 
         /* Standard bar background (holds fills) */
