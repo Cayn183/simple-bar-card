@@ -2,6 +2,15 @@
 ![Card areas](./assets/card-areas.svg)
 This repository provides a lightweight, single-file Home Assistant Lovelace custom card that visualizes numeric entity states as performant bars. Version v0.2.0-beta adds stacked multi-entity rows, an optional heading area, and improved theme/dark-mode compatibility.
 ----
+## Development & TODO
+
+Development notes, the prioritized TODO and short-term work items are tracked in `docs/TODO.md`. Examples are available in the `examples/` folder for quick copy/paste into Lovelace. Use `docs/usage.md` for concise implementation notes and testing tips.
+
+Files:
+- `docs/TODO.md` — compact, prioritized checklist for near-term work
+- `examples/` — ready-to-use YAML snippets (single, multi, bipolar+thresholds)
+- `docs/usage.md` — technical notes (inheritance, visibility flags, icon coloring)
+
 ## English
 ### Quick summary
 - Purpose: display 1–5 entities as horizontal rows containing an icon, a label, a performant bar (scaled via CSS transform), and a numeric value.

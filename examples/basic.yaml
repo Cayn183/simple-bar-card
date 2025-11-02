@@ -1,0 +1,7 @@
+type: 'custom:simple-bar-card'
+entity: sensor.energy_today
+min: 0
+max: 100
+icon_show: true
+value_show: true
+# Optional: card_fill_color, card_background_color, etc.
