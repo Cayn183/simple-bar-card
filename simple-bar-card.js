@@ -448,6 +448,42 @@ class SimpleBarCard extends HTMLElement {
   setIf('--icon-color-dark', 'icon_color_dark');
   setIf('--icon-color-dark', 'icon-color-dark');
 
+  // If users didn't provide explicit dark variants, derive reasonable
+  // dark-mode fallbacks from the provided normal colors. This keeps
+  // explicit `_dark` keys authoritative while improving theme fidelity
+  // when users only specify a single color.
+  const deriveIfMissing = (darkCssVar, normalCfgKeys) => {
+    // check if any dark config key already provided
+    const darkProvided = normalCfgKeys.some(k => (this._config[`${k}_dark`] !== undefined) || (this._config[`${k}-dark`] !== undefined));
+    if (darkProvided) return;
+    // find first normal value provided
+    let normalVal = null;
+    for (const k of normalCfgKeys) {
+      if (this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') { normalVal = this._config[k]; break; }
+      // also accept hyphenated key
+      const hy = k.replace(/_/g, '-');
+      if (this._config[hy] !== undefined && this._config[hy] !== null && this._config[hy] !== '') { normalVal = this._config[hy]; break; }
+    }
+    if (!normalVal) return;
+    try {
+      const derived = this._deriveDarkColor(normalVal);
+      if (derived) {
+        try { this.style.setProperty(darkCssVar, derived); } catch (e) {}
+        if (this._containerEl) this._containerEl.style.setProperty(darkCssVar, derived);
+      }
+    } catch (e) {}
+  };
+
+  // Derive sensible dark fallbacks for common visual CSS variables when missing
+  deriveIfMissing('--card-background-dark', ['card_background_color', 'card-background-color']);
+  deriveIfMissing('--card-border-color-dark', ['card_border_color', 'card-border-color']);
+  deriveIfMissing('--bar-background-color-dark', ['bar_background_color', 'bar-background-color']);
+  deriveIfMissing('--bar-fill-color-dark', ['bar_fill_color', 'bar-fill-color']);
+  deriveIfMissing('--icon-bg-color-dark', ['icon_bg_color', 'icon-bg-color']);
+  deriveIfMissing('--label-color-dark', ['label_color', 'label-color']);
+  deriveIfMissing('--value-color-dark', ['value_color', 'value-color']);
+  deriveIfMissing('--icon-color-dark', ['icon_color', 'icon-color']);
+
     // value font weight still allowed via config boolean
     const valueWeight = this._config.value_bold ? '700' : '400';
     try { this.style.setProperty('--value-font-weight', valueWeight); } catch (e) {}
@@ -988,6 +1024,35 @@ class SimpleBarCard extends HTMLElement {
       });
     } catch (e) {
       // best-effort only
+    }
+  }
+
+  // Derive a reasonable dark-mode color from a provided color string.
+  // Accepts hex, rgb/rgba, named colors (via browser compute) and returns
+  // an rgb(a) string that is darker to work in dark mode.
+  _deriveDarkColor(color) {
+    try {
+      if (!color) return null;
+      // Create a temporary element to let the browser normalize the color
+      const tmp = document.createElement('div');
+      tmp.style.color = color;
+      tmp.style.display = 'none';
+      document.body.appendChild(tmp);
+      const computed = window.getComputedStyle(tmp).color; // e.g. 'rgb(34, 34, 34)' or 'rgba(255, 0, 0, 0.5)'
+      document.body.removeChild(tmp);
+      if (!computed) return null;
+      const m = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
+      if (!m) return null;
+      let r = Number(m[1]), g = Number(m[2]), b = Number(m[3]);
+      const a = (m[4] !== undefined) ? Number(m[4]) : 1;
+      // Darken factor: reduce brightness but keep enough contrast
+      const factor = 0.65;
+      r = Math.max(0, Math.min(255, Math.round(r * factor)));
+      g = Math.max(0, Math.min(255, Math.round(g * factor)));
+      b = Math.max(0, Math.min(255, Math.round(b * factor)));
+      return (a < 1) ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
+    } catch (e) {
+      return null;
     }
   }
 
