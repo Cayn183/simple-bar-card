@@ -9,7 +9,7 @@ Kurzanleitung
 ---
 
 ## In Progress ▶️
-- [ ] Finalize README examples and wording — Owner: @you — Files: `README.md`, `examples/`  
+- [x] Finalize README examples and wording — Owner: @you — Files: `README.md`, `examples/`  
   (Bilingual examples polieren, copy‑paste‑ready YAML)  (Release: v0.0.1)
 - [ ] Decide repo restructuring & maintenance workflow — Owner: @you/@assistant — Files: `docs/`, `examples/`  
   (leichte Reorg: docs + examples, Entscheidung GitHub Issues/Project)  (Release: v0.0.1)
@@ -33,7 +33,7 @@ Kurzanleitung
 ## Coming Soon 🔜
 - [ ] Unit tests for percent & bipolar math — Owner: @assistant — Files: `tests/` or `tools/`  
   (kleiner Test‑Harness für Prozent/Bipolar/Thresholds)
-- [ ] Improve config validation & runtime errors — Owner: @assistant — Files: `simple-bar-card.js`  
+- [x] Improve config validation & runtime errors — Owner: @assistant — Files: `simple-bar-card.js`  
   (freundliche In‑Card Fehlermeldungen statt Exceptions)
 - [ ] Implement bar animation option (configurable) — Owner: @assistant — Files: `simple-bar-card.js`  
   (smooth animations, respects prefers‑reduced‑motion)
@@ -70,3 +70,6 @@ Wenn Dir das Layout so passt, übernehme ich die Einträge in die interne TODO�
 Notes:
 - This TODO is intentionally compact to keep focus. For heavier project management, consider moving actionable items into GitHub Issues and linking back to their numbers here.
 - Owner placeholders: replace `@you` / `@assistant` with real GitHub handles if you add Issues or collaborators.
+
+---
+
