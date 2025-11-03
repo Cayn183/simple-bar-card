@@ -409,25 +409,44 @@ class SimpleBarCard extends HTMLElement {
       }
     };
 
-    // Minimal canonical mappings (explicit only)
-    setIf('--card-background-color', 'card_background_color');
-    setIf('--card-border-color', 'card_border_color');
-    setIf('--card-border-radius', 'card_border_radius');
-    setIf('--bar-background-color', 'bar_background_color');
-    setIf('--icon-bg-color', 'icon_bg_color');
-    setIf('--label-color', 'label_color');
-    setIf('--value-color', 'value_color');
-    setIf('--bar-fill-color', 'bar_fill_color');
-    setIf('--icon-color', 'icon_color');
-    // Dark counterparts (explicit names ending with _dark)
-    setIf('--card-background-dark', 'card_background_color_dark');
-    setIf('--card-border-color-dark', 'card_border_color_dark');
-    setIf('--bar-background-color-dark', 'bar_background_color_dark');
-    setIf('--icon-bg-color-dark', 'icon_bg_color_dark');
-    setIf('--label-color-dark', 'label_color_dark');
-    setIf('--value-color-dark', 'value_color_dark');
-    setIf('--bar-fill-color-dark', 'bar_fill_color_dark');
-    setIf('--icon-color-dark', 'icon_color_dark');
+  // Minimal canonical mappings (explicit only). Accept both underscore
+  // and hyphen variants to preserve common YAML naming patterns.
+  setIf('--card-background-color', 'card_background_color');
+  setIf('--card-background-color', 'card-background-color');
+  setIf('--card-border-color', 'card_border_color');
+  setIf('--card-border-color', 'card-border-color');
+  setIf('--card-border-radius', 'card_border_radius');
+  setIf('--card-border-radius', 'card-border-radius');
+  setIf('--bar-background-color', 'bar_background_color');
+  setIf('--bar-background-color', 'bar-background-color');
+  setIf('--icon-bg-color', 'icon_bg_color');
+  setIf('--icon-bg-color', 'icon-bg-color');
+  setIf('--label-color', 'label_color');
+  setIf('--label-color', 'label-color');
+  setIf('--value-color', 'value_color');
+  setIf('--value-color', 'value-color');
+  setIf('--bar-fill-color', 'bar_fill_color');
+  setIf('--bar-fill-color', 'bar-fill-color');
+  setIf('--icon-color', 'icon_color');
+  setIf('--icon-color', 'icon-color');
+  // Dark counterparts (explicit names ending with _dark). Also accept
+  // hyphenated variants so older configs still work.
+  setIf('--card-background-dark', 'card_background_color_dark');
+  setIf('--card-background-dark', 'card-background-color-dark');
+  setIf('--card-border-color-dark', 'card_border_color_dark');
+  setIf('--card-border-color-dark', 'card-border-color-dark');
+  setIf('--bar-background-color-dark', 'bar_background_color_dark');
+  setIf('--bar-background-color-dark', 'bar-background-color-dark');
+  setIf('--icon-bg-color-dark', 'icon_bg_color_dark');
+  setIf('--icon-bg-color-dark', 'icon-bg-color-dark');
+  setIf('--label-color-dark', 'label_color_dark');
+  setIf('--label-color-dark', 'label-color-dark');
+  setIf('--value-color-dark', 'value_color_dark');
+  setIf('--value-color-dark', 'value-color-dark');
+  setIf('--bar-fill-color-dark', 'bar_fill_color_dark');
+  setIf('--bar-fill-color-dark', 'bar-fill-color-dark');
+  setIf('--icon-color-dark', 'icon_color_dark');
+  setIf('--icon-color-dark', 'icon-color-dark');
 
     // value font weight still allowed via config boolean
     const valueWeight = this._config.value_bold ? '700' : '400';
