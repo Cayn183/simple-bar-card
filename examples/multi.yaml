@@ -1,0 +1,12 @@
+type: 'custom:simple-bar-card'
+entities:
+  - entity: sensor.temp_living
+    name: Living Room
+  - entity: sensor.temp_bedroom
+    name: Bedroom
+heading_show: true
+heading: Temperatures
+icon_show: true
+value_show: true
+min: 0
+max: 40

@@ -1,0 +1,21 @@
+type: 'custom:simple-bar-card'
+entities:
+  - entity: sensor.power_delta
+    name: "Power Delta"
+    min: -100
+    max: 100
+    bipolar: true
+    bipolar_mode: symmetric
+    color_thresholds:
+      - value: -50
+        color: '#60a5fa'
+      - value: 0
+        color: '#a3e635'
+      - value: 100
+        color: '#fb7185'
+    unit: W
+    decimals: 0
+heading_show: true
+heading: Power Delta
+icon_show: true
+value_show: true

@@ -1,21 +1,537 @@
 class SimpleBarCard extends HTMLElement {
   constructor() {
     super();
+
+    // Shadow root
     this.attachShadow({ mode: 'open' });
+
+    // Cached DOM references (werden in _build once gesetzt)
+    this._containerEl = null;
+    this._labelEl = null;
+    this._barBackgroundEl = null;
+    this._barFillEl = null;
+    this._barFillNegEl = null;
+    this._barFillPosEl = null;
+    this._zeroLineEl = null;
+    this._valueEl = null;
+    this._iconEl = null;
+    this._iconCircleEl = null;
+
+    // Last known state for change detection
+    this._lastState = {
+      rawValue: undefined,
+      percent: undefined,
+      fillColor: undefined,
+      modeBipolar: undefined,
+      negScale: undefined,
+      posScale: undefined,
+      displayName: undefined,
+      formattedValueWithUnit: undefined,
+      icon: undefined,
+      iconColor: undefined
+    };
+
+    // rAF batching
+    this._updateScheduled = false;
+    this._pendingState = null;
+
+    // Build skeleton once
+    this._buildSkeleton();
+  }
+
+  /***************************
+   * Gemeinsame CSS & Template (static)
+   ***************************/
+  _commonStyles() {
+    return `
+      <style>
+        .config-error {
+          padding: 8px;
+          color: var(--error-color, #c00);
+          font-weight: 700;
+          background: transparent;
+          border-radius: 6px;
+          margin-bottom: 6px;
+        }
+        .config-warning {
+          padding: 6px 8px;
+          color: var(--warning-color, #b36b00);
+          background: transparent;
+          font-weight: 600;
+          border-radius: 6px;
+          margin-bottom: 6px;
+        }
+
+        :host {
+          display: block;
+        }
+        .container {
+          font-family: sans-serif;
+          width: 100%;
+          padding: 8px;
+          box-sizing: border-box;
+          /* Prefer Home Assistant theme variables; fall back to sensible defaults */
+          background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
+          border: 1px solid var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #ccc)));
+          border-radius: var(--card-border-radius, 12px);
+          display: block;
+        }
+
+        /* Entities wrapper: stack multiple entity rows vertically */
+        .entities {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        /* Each entity row keeps the original horizontal layout: icon | main | value */
+        .entity-row {
+          display: flex;
+          align-items: center;
+        }
+
+        /* Optional heading above the entities */
+        .heading {
+          font-weight: 700;
+          font-size: 14px;
+          margin-bottom: 6px;
+          color: var(--label-color, var(--primary-text-color, inherit));
+        }
+
+        /* Icon area */
+        .icon-container {
+          width: 50px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .icon-circle {
+          width: 45px;
+          height: 45px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          /* prefer explicit config, otherwise transparent so underlying background shows through */
+          background-color: var(--icon-bg-color, transparent);
+          box-sizing: border-box;
+        }
+          .ha-icon.bar-icon {
+            width: 35px;
+            height: 35px;
+            display: block;
+            margin: 0 auto;
+            line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
+            padding: 0;
+            /* Prefer explicit CSS variable, otherwise use Home Assistant theme icon color */
+            color: var(--icon-color, var(--paper-item-icon-color, inherit));
+          }
+        /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
+        .ha-icon.bar-icon::part(svg) {
+          display: block;
+          width: 100%;
+          height: 100%;
+          /* Ensure the SVG paths use the element's color (currentColor) so theme colors apply */
+          fill: currentColor;
+        }
+
+        /* Main area: label + bar */
+        .main-container {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-left: 12px;
+        }
+        .label {
+          margin-bottom: 4px;
+          font-weight: 600;
+          color: var(--label-color, var(--primary-text-color, inherit));
+          font-size: 13px;
+          transform: translateX(8px);
+        }
+
+        /* Standard bar background (holds fills) */
+        .bar-row {
+          display: flex;
+          align-items: center;
+        }
+        .bar-background {
+          position: relative;
+          flex-grow: 1;
+          height: 24px;
+          background-color: var(--bar-background-color, rgba(0,0,0,0.08));
+          border-radius: 12px;
+          overflow: hidden;
+          margin-right: 12px;
+        }
+
+        /* STANDARD fill (uses transform scaleX for performance) */
+        .bar-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 100%;               /* full width, scaled via transform */
+          transform-origin: left;
+          transform: scaleX(0);
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
+          border-radius: 12px 6px 6px 12px;
+          transition: transform 300ms ease;
+          will-change: transform;
+        }
+
+        /* BIPOLAR fills: each covers half width; scaled via transform */
+        .bar-fill-negative,
+        .bar-fill-positive {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 50%;                /* half width; scaleX(0..1) visualizes amount */
+          transition: transform 300ms ease;
+          will-change: transform;
+          background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
+        }
+        .bar-fill-negative {
+          right: 50%;
+          transform-origin: right;
+          border-radius: 6px 0 0 6px; /* rounded toward center */
+        }
+        .bar-fill-positive {
+          left: 50%;
+          transform-origin: left;
+          border-radius: 0 6px 6px 0; /* rounded toward center */
+        }
+
+        /* Zero line for bipolar */
+        .zero-line {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 50%;
+          width: 2px;
+          background-color: var(--card-border-color, var(--divider-color, #ccc));
+          transform: translateX(-50%);
+          z-index: 2;
+        }
+
+        /* Value area */
+        .value-container {
+          width: 60px;
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+          white-space: nowrap;
+          margin-left: 8px;
+          height: 24px;
+          box-sizing: border-box;
+        }
+        .value {
+          min-width: 50px;
+          font-size: 14px;
+          color: var(--value-color, var(--secondary-text-color, inherit));
+          font-weight: var(--value-font-weight, 400); /* normal or bold */
+          text-align: center;
+          transform: translateY(12px);
+        }
+        /* When the icon area is disabled via config (icon: false), hide the icon
+           column and remove the left margin so the main content shifts left. */
+        :host([no-icon]) .icon-container {
+          display: none;
+        }
+        :host([no-icon]) .main-container {
+          margin-left: 0;
+        }
+        /* When the value area is disabled via config (value_show: false), hide
+           the value column and remove the right gap so the bar fills the space. */
+        :host([no-value]) .value-container {
+          display: none;
+        }
+        :host([no-value]) .bar-background {
+          margin-right: 0;
+        }
+      </style>
+      <style>
+        /* Dark-mode: allow explicit dark-mode variables for all visual properties.
+           Each visual variable supports a dark counterpart (e.g. --card-background-dark)
+           which will be preferred when prefers-color-scheme: dark.
+        */
+        @media (prefers-color-scheme: dark) {
+          .container {
+            background-color: var(--card-background-dark, var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(40,40,40,1)))));
+            border: 1px solid var(--card-border-color-dark, var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #444))));
+          }
+
+          .bar-background {
+            background-color: var(--bar-background-color-dark, var(--bar-background-color, rgba(255,255,255,0.06)));
+          }
+
+          .bar-fill,
+          .bar-fill-negative,
+          .bar-fill-positive {
+            background-color: var(--bar-fill-color-dark, var(--bar-fill-color, var(--primary-color, #3b82f6)));
+          }
+
+          .icon-circle {
+            background-color: var(--icon-bg-color-dark, var(--icon-bg-color, transparent));
+          }
+
+          .label {
+            color: var(--label-color-dark, var(--label-color, var(--primary-text-color, inherit)));
+          }
+
+          .value {
+            color: var(--value-color-dark, var(--value-color, var(--secondary-text-color, inherit)));
+          }
+
+          .ha-icon.bar-icon {
+            /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
+          }
+        }
+      </style>
+    `;
+  }
+
+  /***************************
+   * Build skeleton once
+   * - create DOM structure & static styles once
+   * - store element references for future updates
+   ***************************/
+  _buildSkeleton() {
+    const template = document.createElement('template');
+    template.innerHTML = `
+      ${this._commonStyles()}
+      <div class="container">
+        <div class="heading" style="display:none"></div>
+        <div class="entities">
+          <!-- up to 5 entity rows; visibility controlled dynamically -->
+          <div class="entity-row">
+            <div class="icon-container">
+              <div class="icon-circle">
+                <ha-icon class="bar-icon"></ha-icon>
+              </div>
+            </div>
+            <div class="main-container">
+              <div class="label"></div>
+              <div class="bar-row">
+                <div class="bar-background">
+                  <!-- standard fill (scaled via transform) -->
+                  <div class="bar-fill"></div>
+
+                  <!-- bipolar fills (each covers half, scaled via transform) -->
+                  <div class="bar-fill-negative" style="transform: scaleX(0)"></div>
+                  <div class="bar-fill-positive" style="transform: scaleX(0)"></div>
+
+                  <!-- zero line (shown only in bipolar mode) -->
+                  <div class="zero-line" style="display:none"></div>
+                </div>
+              </div>
+            </div>
+            <div class="value-container"><div class="value"></div></div>
+          </div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
+          <div class="entity-row"></div>
+        </div>
+      </div>
+    `;
+    // Append once
+    this.shadowRoot.appendChild(template.content.cloneNode(true));
+
+    // Cache refs
+    this._containerEl = this.shadowRoot.querySelector('.container');
+  this._headingEl = this.shadowRoot.querySelector('.heading');
+
+    // Per-row cached refs (support up to 5 rows)
+    this._rowEls = [];
+    const rows = this.shadowRoot.querySelectorAll('.entity-row');
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.querySelector('.icon-container')) {
+        // clone the inner structure from the first row if empty
+        const first = rows[0];
+        row.innerHTML = first.innerHTML;
+      }
+      const r = {
+        root: row,
+        iconEl: row.querySelector('ha-icon.bar-icon'),
+        iconCircleEl: row.querySelector('.icon-circle'),
+        labelEl: row.querySelector('.label'),
+        barBackgroundEl: row.querySelector('.bar-background'),
+        barFillEl: row.querySelector('.bar-fill'),
+        barFillNegEl: row.querySelector('.bar-fill-negative'),
+        barFillPosEl: row.querySelector('.bar-fill-positive'),
+        zeroLineEl: row.querySelector('.zero-line'),
+        valueEl: row.querySelector('.value')
+      };
+      this._rowEls.push(r);
+    }
+
+    // Initialize last state per row
+    this._lastStateRows = Array.from({ length: this._rowEls.length }, () => ({}));
+    // Pending row updates storage
+    this._pendingRowStates = {};
+    this._rowUpdateScheduled = false;
   }
 
   /***************************
    * Konfigurations-Handler
    ***************************/
   setConfig(config) {
-    if (!config.entity) {
-      throw new Error("Entity muss angegeben werden!");
+    if (!config) {
+      this._renderError('Keine Konfiguration angegeben — bitte mindestens `entity` oder `entities` setzen.');
+      return;
     }
     this._config = {
       min: 0,
       max: 100,
+      bipolar: false,
+  // `icon_show` controls whether the icon column is visible. Default: true.
+  icon_show: true,
+  // `value_show` controls whether the numeric value column is visible. Default: true.
+  value_show: true,
+  // Optional heading above entities
+  heading_show: false,
+  heading: undefined,
       ...config
     };
+    // Apply only explicitly provided config-controlled CSS variables.
+    // Keep the accepted keys minimal and explicit to avoid surprising alias
+    // collisions. Users may set these snake_case keys in the YAML if they want
+    // to override theme colors.
+    const setIf = (cssVar, cfgKey) => {
+      const val = this._config[cfgKey];
+      if (val !== undefined && val !== null && val !== '') {
+        try { this.style.setProperty(cssVar, val); } catch (e) {}
+        if (this._containerEl) this._containerEl.style.setProperty(cssVar, val);
+      }
+    };
+
+    // Minimal canonical mappings (explicit only)
+    setIf('--card-background-color', 'card_background_color');
+    setIf('--card-border-color', 'card_border_color');
+    setIf('--card-border-radius', 'card_border_radius');
+    setIf('--bar-background-color', 'bar_background_color');
+    setIf('--icon-bg-color', 'icon_bg_color');
+    setIf('--label-color', 'label_color');
+    setIf('--value-color', 'value_color');
+    setIf('--bar-fill-color', 'bar_fill_color');
+    setIf('--icon-color', 'icon_color');
+    // Dark counterparts (explicit names ending with _dark)
+    setIf('--card-background-dark', 'card_background_color_dark');
+    setIf('--card-border-color-dark', 'card_border_color_dark');
+    setIf('--bar-background-color-dark', 'bar_background_color_dark');
+    setIf('--icon-bg-color-dark', 'icon_bg_color_dark');
+    setIf('--label-color-dark', 'label_color_dark');
+    setIf('--value-color-dark', 'value_color_dark');
+    setIf('--bar-fill-color-dark', 'bar_fill_color_dark');
+    setIf('--icon-color-dark', 'icon_color_dark');
+
+    // value font weight still allowed via config boolean
+    const valueWeight = this._config.value_bold ? '700' : '400';
+    try { this.style.setProperty('--value-font-weight', valueWeight); } catch (e) {}
+    if (this._containerEl) this._containerEl.style.setProperty('--value-font-weight', valueWeight);
+
+    // Parse up to 5 entities. Support two styles:
+    // - config.entities: array of strings or objects
+    // - config.entity, config.entity_2, config.entity_3, ...
+    this._entities = [];
+    if (Array.isArray(this._config.entities) && this._config.entities.length > 0) {
+      if (this._config.entities.length > 5) {
+        this._renderError('Maximal 5 entities sind erlaubt');
+        return;
+      }
+      for (const e of this._config.entities) {
+        if (typeof e === 'string') {
+          this._entities.push(Object.assign({}, this._config, { entity: e }));
+        } else if (typeof e === 'object' && e !== null) {
+          this._entities.push(Object.assign({}, this._config, e));
+        }
+      }
+    } else {
+      // gather entity, entity_2 .. entity_5
+      for (let i = 1; i <= 5; i++) {
+        const key = i === 1 ? 'entity' : `entity_${i}`;
+        if (key in this._config && this._config[key]) {
+          // build per-entity config by taking base and applying suffixed overrides
+          const per = Object.assign({}, this._config);
+          // apply overrides like min_2 => per.min
+          for (const k of Object.keys(this._config)) {
+            const suffix = `_${i}`;
+            if (k.endsWith(suffix)) {
+              const baseKey = k.slice(0, -suffix.length);
+              // Do not allow per-entity visibility toggles via suffixed keys.
+              // icon_show and value_show are global toggles applied to all rows.
+              if (baseKey === 'icon_show' || baseKey === 'value_show') continue;
+              per[baseKey] = this._config[k];
+            }
+          }
+          per.entity = this._config[key];
+          this._entities.push(per);
+        }
+      }
+    }
+
+    if (this._entities.length === 0) {
+      this._renderError('Mindestens eine Entity muss angegeben werden (z.B. `entity: sensor.temp`).');
+      return;
+    }
+
+    if (this._entities.length > 5) {
+      this._renderError('Maximal 5 Entities sind erlaubt. Bitte reduziere die Anzahl.');
+      return;
+    }
+
+    // Show/hide row elements according to number of entities configured
+    if (this._rowEls && this._rowEls.length) {
+      for (let i = 0; i < this._rowEls.length; i++) {
+        const el = this._rowEls[i].root;
+        if (i < this._entities.length) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      }
+    }
+
+    // Clear any previous config error now that parsing succeeded
+    this._clearError();
+
+    // Heading display
+    if (this._headingEl) {
+      if (this._config.heading_show) {
+        this._headingEl.textContent = this._config.heading || '';
+        this._headingEl.style.display = '';
+      } else {
+        this._headingEl.style.display = 'none';
+      }
+    }
+
+    // Icon visibility: support `icon_show: false` to remove the icon column and
+    // let the bar content shift left. `icon` (string) is used only as the
+    // icon name when present; `icon_show` controls visibility independently.
+    if (this._config.icon_show === false) {
+      this.setAttribute('no-icon', '');
+    } else {
+      this.removeAttribute('no-icon');
+    }
+
+    // Value visibility: support `value_show: false` to hide the numeric value
+    // column and let the bar fill the space to the right. Default is true.
+    if (this._config.value_show === false) {
+      this.setAttribute('no-value', '');
+    } else {
+      this.removeAttribute('no-value');
+    }
+
+    // Remove any per-entity icon_show/value_show flags so visibility is only
+    // controlled globally via this._config.icon_show / this._config.value_show.
+    for (const per of this._entities) {
+      if ('icon_show' in per) delete per.icon_show;
+      if ('value_show' in per) delete per.value_show;
+    }
   }
 
   /***************************
@@ -27,43 +543,388 @@ class SimpleBarCard extends HTMLElement {
   }
 
   /***************************
-   * Haupt-Render-Methode
+   * Haupt-Render-Methode (light & efficient)
    ***************************/
   _render() {
+    // Preconditions
     if (!this._config || !this._hass) return;
+    // For each configured entity, compute its display state and schedule an update for that row
+    for (let i = 0; i < this._entities.length; i++) {
+      const per = this._entities[i];
+      const stateObj = this._hass.states[per.entity];
+      if (!stateObj) {
+        this._renderError(`Entity nicht gefunden: ${per.entity}`);
+        return;
+      }
 
-    const stateObj = this._hass.states[this._config.entity];
-    if (!stateObj) {
-      this._renderError(`Entity nicht gefunden: ${this._config.entity}`);
-      return;
+      const rawValue = Number(stateObj.state);
+      if (isNaN(rawValue)) {
+        this._renderError(`Ungültiger Wert: ${stateObj.state}`);
+        return;
+      }
+
+      const displayName = per.name || stateObj.attributes.friendly_name || per.entity;
+      const formattedValueWithUnit = this._formatValue(rawValue, stateObj, per);
+      const fillColor = this._getColorForValue(rawValue, per) || per.bar_fill_color || '#3b82f6';
+
+      // Icon handling per entity. Visibility is global via this._config.icon_show
+      let icon;
+      if (this._config.icon_show === false) {
+        icon = undefined;
+      } else {
+        icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
+      }
+
+      const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
+
+      // Mode handling
+      if (per.bipolar) {
+        const min = Number(per.min);
+        const max = Number(per.max);
+        const clampedValue = Math.min(Math.max(rawValue, min), max);
+        const mode = per.bipolar_mode || 'per_side';
+        let negScale = 0, posScale = 0;
+        const safe = (v) => { v = Number(v); return (isFinite(v) && v !== 0) ? v : null; };
+        if (mode === 'per_side') {
+          const safeMin = safe(min);
+          const safeMax = safe(max);
+          if (clampedValue < 0 && safeMin !== null && min < 0) {
+            negScale = Math.min(Math.abs(clampedValue / min), 1);
+          } else if (clampedValue > 0 && safeMax !== null && max > 0) {
+            posScale = Math.min(clampedValue / max, 1);
+          }
+        } else {
+          const maxAbs = Math.max(Math.abs(min || 0), Math.abs(max || 0), 1e-9);
+          if (clampedValue < 0) negScale = Math.min(Math.abs(clampedValue) / maxAbs, 1);
+          else if (clampedValue > 0) posScale = Math.min(clampedValue / maxAbs, 1);
+        }
+
+        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        this._scheduleRowUpdate(i, newState);
+      } else {
+        const percent = this._calculatePercentWithConfig(rawValue, per) / 100;
+        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        this._scheduleRowUpdate(i, newState);
+      }
     }
-
-    const rawValue = Number(stateObj.state);
-    if (isNaN(rawValue)) {
-      this._renderError(`Ungültiger Wert: ${stateObj.state}`);
-      return;
-    }
-
-    // Werte normalisieren und formatieren
-    const percent = this._calculatePercent(rawValue);
-    const displayName = this._calculateDisplayName(stateObj);
-    const formattedValueWithUnit = this._formatValue(rawValue, stateObj);
-
-    // Styles + Template einfügen
-    this._renderCard(displayName, percent, formattedValueWithUnit);
-
   }
 
   /***************************
-   * Hilfsmethoden
+   * Scheduling & Applying Updates (batched with requestAnimationFrame)
+   ***************************/
+  _scheduleStateUpdate(state) {
+    // Merge into pendingState
+    this._pendingState = Object.assign({}, this._pendingState || {}, state);
+
+    if (this._updateScheduled) return;
+
+    this._updateScheduled = true;
+    requestAnimationFrame(() => {
+      this._updateScheduled = false;
+      const next = this._pendingState;
+      this._pendingState = null;
+      this._applyState(next);
+    });
+  }
+
+  // Schedule a single row update (batched via rAF)
+  _scheduleRowUpdate(index, state) {
+    this._pendingRowStates[index] = Object.assign({}, this._pendingRowStates[index] || {}, state);
+    if (this._rowUpdateScheduled) return;
+    this._rowUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this._rowUpdateScheduled = false;
+      const pending = this._pendingRowStates;
+      this._pendingRowStates = {};
+      for (const [idxStr, s] of Object.entries(pending)) {
+        const idx = Number(idxStr);
+        this._applyStateRow(idx, s);
+      }
+    });
+  }
+
+  _calculatePercentWithConfig(value, cfg) {
+    const min = Number(cfg.min ?? this._config.min);
+    const max = Number(cfg.max ?? this._config.max);
+    if (max === min) return 0;
+    let percent = ((value - min) / (max - min)) * 100;
+    return Math.min(Math.max(percent, 0), 100);
+  }
+
+  _applyState(state) {
+    if (!state) return;
+    // If per-row rendering is active, route single-state updates to row 0
+    if (this._rowEls && this._rowEls.length) {
+      this._applyStateRow(0, state);
+      return;
+    }
+
+    // Short-circuit if nothing changed (compare relevant fields)
+    const last = this._lastState;
+
+    // Mode change handling
+    if (state.modeBipolar !== last.modeBipolar) {
+      // Show/hide elements appropriately
+      if (state.modeBipolar) {
+        // ensure bipolar elements visible
+        this._barFillEl.style.display = 'none';
+        this._barFillNegEl.style.display = '';
+        this._barFillPosEl.style.display = '';
+        this._zeroLineEl.style.display = '';
+        // set initial transforms
+        this._barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
+        this._barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
+      } else {
+        // standard mode
+        this._barFillEl.style.display = '';
+        this._barFillNegEl.style.display = 'none';
+        this._barFillPosEl.style.display = 'none';
+        this._zeroLineEl.style.display = 'none';
+        this._barFillEl.style.transform = `scaleX(${state.percent || 0})`;
+      }
+      last.modeBipolar = state.modeBipolar;
+    }
+
+    // Update icon if changed
+    if (state.icon !== last.icon) {
+      if (state.icon) {
+        this._iconEl.setAttribute('icon', state.icon);
+      } else {
+        this._iconEl.removeAttribute('icon');
+      }
+      last.icon = state.icon;
+    }
+
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        this._iconEl.style.color = state.iconColor;
+      } else {
+        this._iconEl.style.removeProperty('color');
+      }
+      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
+      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
+      // we traverse shadowRoots to find the svg and set path fills. This forces
+      // the visible icon color to match the theme or an explicit icon_color.
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+          ? state.iconColor
+          : window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
+      } catch (e) {}
+      last.iconColor = state.iconColor;
+    }
+
+    // Update displayName
+    if (state.displayName !== last.displayName) {
+      this._labelEl.textContent = state.displayName;
+      last.displayName = state.displayName;
+    }
+
+    // Update formatted value
+    if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
+      this._valueEl.textContent = state.formattedValueWithUnit;
+      last.formattedValueWithUnit = state.formattedValueWithUnit;
+    }
+
+    // Update fill color
+    if (state.fillColor !== last.fillColor) {
+      // Set CSS variable on container for fills to use
+      this._containerEl.style.setProperty('--bar-fill-color', state.fillColor);
+      last.fillColor = state.fillColor;
+    }
+
+    // Update bar transform depending on mode
+    if (state.modeBipolar) {
+      // negScale / posScale each 0..1
+      if (state.negScale !== last.negScale) {
+        this._barFillNegEl.style.transform = `scaleX(${state.negScale})`;
+        last.negScale = state.negScale;
+      }
+      if (state.posScale !== last.posScale) {
+        this._barFillPosEl.style.transform = `scaleX(${state.posScale})`;
+        last.posScale = state.posScale;
+      }
+      // ensure standard not changed
+      last.percent = undefined;
+    } else {
+      if (state.percent !== last.percent) {
+        this._barFillEl.style.transform = `scaleX(${state.percent})`;
+        last.percent = state.percent;
+      }
+      // ensure bipolar not changed
+      last.negScale = undefined;
+      last.posScale = undefined;
+    }
+
+    // store rawValue
+    last.rawValue = state.rawValue;
+
+    // Always force SVG fill to match computed color after every update (covers theme changes)
+    try {
+      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+        ? state.iconColor
+        : window.getComputedStyle(this._iconEl).color;
+      this._applyInnerSvgColor(this._iconEl, desired);
+    } catch (e) {}
+  }
+
+  // Apply state to a specific row index using the cached row elements
+  _applyStateRow(index, state) {
+    if (!state) return;
+    const rowEls = this._rowEls[index];
+    const last = this._lastStateRows[index] || {};
+
+    // Mode switch
+    if (state.modeBipolar !== last.modeBipolar) {
+      if (state.modeBipolar) {
+        rowEls.barFillEl.style.display = 'none';
+        rowEls.barFillNegEl.style.display = '';
+        rowEls.barFillPosEl.style.display = '';
+        rowEls.zeroLineEl.style.display = '';
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
+      } else {
+        rowEls.barFillEl.style.display = '';
+        rowEls.barFillNegEl.style.display = 'none';
+        rowEls.barFillPosEl.style.display = 'none';
+        rowEls.zeroLineEl.style.display = 'none';
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent || 0})`;
+      }
+      last.modeBipolar = state.modeBipolar;
+    }
+
+    // Icon
+    if (state.icon !== last.icon) {
+      if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
+      else rowEls.iconEl.removeAttribute('icon');
+      last.icon = state.icon;
+    }
+
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
+      else rowEls.iconEl.style.removeProperty('color');
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
+      } catch (e) {}
+      last.iconColor = state.iconColor;
+    }
+
+    // Label
+    if (state.displayName !== last.displayName) {
+      rowEls.labelEl.textContent = state.displayName;
+      last.displayName = state.displayName;
+    }
+
+    // Value
+    if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
+      rowEls.valueEl.textContent = state.formattedValueWithUnit;
+      last.formattedValueWithUnit = state.formattedValueWithUnit;
+    }
+
+    // Fill color (set on the row root so --bar-fill-color applies)
+    if (state.fillColor !== last.fillColor) {
+      rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
+      last.fillColor = state.fillColor;
+    }
+
+    // Transforms for scales/percent
+    if (state.modeBipolar) {
+      if (state.negScale !== last.negScale) {
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale})`;
+        last.negScale = state.negScale;
+      }
+      if (state.posScale !== last.posScale) {
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale})`;
+        last.posScale = state.posScale;
+      }
+      last.percent = undefined;
+    } else {
+      if (state.percent !== last.percent) {
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent})`;
+        last.percent = state.percent;
+      }
+      last.negScale = undefined;
+      last.posScale = undefined;
+    }
+
+    last.rawValue = state.rawValue;
+    this._lastStateRows[index] = last;
+  }
+
+  /***************************
+   * Hilfsmethoden & Utilities
    ***************************/
   _renderError(message) {
-    this.shadowRoot.innerHTML = `<div>${message}</div>`;
+    // Show a simple, non-destructive in-card error message. Keep the card
+    // skeleton and styles intact so the user can fix configuration without
+    // losing the card structure.
+    try {
+      if (!this._containerEl) {
+        // rebuild skeleton if it was previously cleared
+        this.shadowRoot.innerHTML = '';
+        this._buildSkeleton();
+      }
+      let err = this._containerEl.querySelector('.config-error');
+      if (!err) {
+        err = document.createElement('div');
+        err.className = 'config-error';
+        this._containerEl.insertBefore(err, this._containerEl.firstChild);
+      }
+      err.textContent = message;
+      const entities = this._containerEl.querySelector('.entities');
+      if (entities) entities.style.display = 'none';
+    } catch (e) {
+      // Fallback: if anything goes wrong, at least replace the root so the
+      // error is still visible.
+      this.shadowRoot.innerHTML = `${this._commonStyles()}<div class="config-error">${message}</div>`;
+    }
+  }
+
+  _clearError() {
+    try {
+      if (!this._containerEl) return;
+      const err = this._containerEl.querySelector('.config-error');
+      if (err) err.remove();
+      const entities = this._containerEl.querySelector('.entities');
+      if (entities) entities.style.display = '';
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  _renderWarning(message) {
+    // Do not show warnings if an error is currently displayed
+    try {
+      if (!this._containerEl) return;
+      if (this._containerEl.querySelector('.config-error')) return;
+      let warn = this._containerEl.querySelector('.config-warning');
+      if (!warn) {
+        warn = document.createElement('div');
+        warn.className = 'config-warning';
+        // Insert warning just above the entities list
+        const entities = this._containerEl.querySelector('.entities');
+        if (entities) this._containerEl.insertBefore(warn, entities);
+        else this._containerEl.insertBefore(warn, this._containerEl.firstChild);
+      }
+      warn.textContent = message;
+    } catch (e) {
+      // ignore best-effort warnings
+    }
+  }
+
+  _clearWarning() {
+    try {
+      if (!this._containerEl) return;
+      const warn = this._containerEl.querySelector('.config-warning');
+      if (warn) warn.remove();
+    } catch (e) {}
   }
 
   _calculatePercent(value) {
     const min = Number(this._config.min);
     const max = Number(this._config.max);
+    if (max === min) return 0;
     let percent = ((value - min) / (max - min)) * 100;
     return Math.min(Math.max(percent, 0), 100);
   }
@@ -72,80 +933,55 @@ class SimpleBarCard extends HTMLElement {
     return this._config.name || stateObj.attributes.friendly_name || this._config.entity;
   }
 
-  _formatValue(value, stateObj) {
-    const decimals = ('decimals' in this._config) ? Number(this._config.decimals) : 0;
-    const unit = this._config.unit || stateObj.attributes.unit_of_measurement || '';
-    const formattedValue = value.toFixed(decimals);
+  _getColorForValue(value, cfg) {
+    const thresholds = (cfg && cfg.color_thresholds) || this._config.color_thresholds;
+    if (!thresholds || !Array.isArray(thresholds) || thresholds.length === 0) {
+      return (cfg && cfg.bar_fill_color) || this._config.bar_fill_color || '#3b82f6';
+    }
+    for (const threshold of thresholds) {
+      if (value <= threshold.value) {
+        return threshold.color;
+      }
+    }
+    return thresholds[thresholds.length - 1].color;
+  }
+
+  // Try to find the inner SVG inside ha-icon / ha-svg-icon shadow roots and set
+  // its path fills to the provided color. This is necessary because many HA
+  // icon implementations render the <svg> inside a shadow DOM and do not
+  // automatically inherit currentColor.
+  _applyInnerSvgColor(iconEl, color) {
+    if (!iconEl) return;
+    try {
+      // ha-icon -> shadowRoot -> ha-svg-icon -> shadowRoot -> svg
+      const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
+      const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
+      if (!svg) return;
+
+      // Compute a concrete color value if needed
+      const fillVal = color || window.getComputedStyle(iconEl).color || null;
+      if (!fillVal) return;
+
+      // Set fill on path elements (safe and effective)
+      const paths = svg.querySelectorAll('path, circle, rect, polygon');
+      paths.forEach(p => {
+        try { p.setAttribute('fill', fillVal); } catch (e) {}
+      });
+    } catch (e) {
+      // best-effort only
+    }
+  }
+
+  _formatValue(value, stateObj, cfg) {
+    const decimals = ('decimals' in (cfg || this._config)) ? Number((cfg || this._config).decimals) : 0;
+    const unit = (cfg && cfg.unit) || this._config.unit || stateObj.attributes.unit_of_measurement || '';
+    const formattedValue = Number(value).toFixed(decimals);
     return unit ? `${formattedValue} ${unit}` : formattedValue;
   }
 
-  _renderCard(displayName, percent, formattedValueWithUnit) {
-    const containerStyles = `
-      --card-background-color: ${this._config.card_background_color || '#fff'};
-      --card-border-color: ${this._config.card_border_color || '#ccc'};
-      --card-border-radius: ${this._config.card_border_radius || '12px'};
-      --bar-background-color: ${this._config.bar_background_color || '#ddd'};
-      --bar-fill-color: ${this._config.bar_fill_color || '#3b82f6'};
-      `;
-      
-    const style = `
-      <style>
-        .container {
-          font-family: sans-serif;
-          width: 100%;
-          padding: 8px;
-          box-sizing: border-box;
-          background-color: var(--card-background-color);
-          border: 1px solid var(--card-border-color);
-          border-radius: var(--card-border-radius);
-        }
-        .label {
-          margin-bottom: 6px;
-          font-weight: 600;
-        }
-        .bar-row {
-          display: flex;
-          align-items: center;
-        }
-        .bar-background {
-          flex-grow: 1;
-          height: 24px;
-          background-color: var(--bar-background-color);
-          border-radius: 12px;
-          overflow: hidden;
-          margin-right: 12px;
-        }
-        .bar-fill {
-          height: 100%;
-          width: ${percent}%;
-          background-color: var(--bar-fill-color);
-          border-radius: 12px 0 0 12px;
-          transition: width 0.3s ease;
-        }
-        .value {
-          min-width: 50px;
-          font-size: 14px;
-          color: #444;
-          text-align: right;
-          white-space: nowrap;
-        }
-      </style>
-    `;
-
-    this.shadowRoot.innerHTML = `
-      ${style}
-      <div class="container" style="${containerStyles}">
-        <div class="label">${displayName}</div>
-        <div class="bar-row">
-          <div class="bar-background">
-            <div class="bar-fill"></div>
-          </div>
-          <div class="value">${formattedValueWithUnit}</div>
-        </div>
-      </div>
-    `;
-  }
-
+  /***************************
+   * Card size (Lovelace)
+   ***************************/
   getCardSize() {
     return 1;
   }
