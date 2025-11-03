@@ -45,23 +45,6 @@ class SimpleBarCard extends HTMLElement {
   _commonStyles() {
     return `
       <style>
-        .config-error {
-          padding: 8px;
-          color: var(--error-color, #c00);
-          font-weight: 700;
-          background: transparent;
-          border-radius: 6px;
-          margin-bottom: 6px;
-        }
-        .config-warning {
-          padding: 6px 8px;
-          color: var(--warning-color, #b36b00);
-          background: transparent;
-          font-weight: 600;
-          border-radius: 6px;
-          margin-bottom: 6px;
-        }
-
         :host {
           display: block;
         }
@@ -380,9 +363,8 @@ class SimpleBarCard extends HTMLElement {
    * Konfigurations-Handler
    ***************************/
   setConfig(config) {
-    if (!config) {
-      this._renderError('Keine Konfiguration angegeben — bitte mindestens `entity` oder `entities` setzen.');
-      return;
+    if (!config || !config.entity) {
+      throw new Error("Entity muss angegeben werden!");
     }
     this._config = {
       min: 0,
@@ -397,107 +379,76 @@ class SimpleBarCard extends HTMLElement {
   heading: undefined,
       ...config
     };
-    // Apply only explicitly provided config-controlled CSS variables.
-    // Keep the accepted keys minimal and explicit to avoid surprising alias
-    // collisions. Users may set these snake_case keys in the YAML if they want
-    // to override theme colors.
-    const setIf = (cssVar, cfgKey) => {
-      const val = this._config[cfgKey];
+
+  // Apply only explicitly provided config-controlled CSS variables.
+  // Preserve Home Assistant themes when no custom color is given.
+  // Use aliases and set variables on the host and on the container (if present)
+  // to ensure host-level and media-query-scoped styles see them reliably.
+    const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
-        try { this.style.setProperty(cssVar, val); } catch (e) {}
-        if (this._containerEl) this._containerEl.style.setProperty(cssVar, val);
+        try {
+          this.style.setProperty(prop, val);
+        } catch (e) {}
+        if (this._containerEl) this._containerEl.style.setProperty(prop, val);
       }
     };
 
-  // Minimal canonical mappings (explicit only). Accept both underscore
-  // and hyphen variants to preserve common YAML naming patterns.
-  setIf('--card-background-color', 'card_background_color');
-  setIf('--card-background-color', 'card-background-color');
-  setIf('--card-border-color', 'card_border_color');
-  setIf('--card-border-color', 'card-border-color');
-  setIf('--card-border-radius', 'card_border_radius');
-  setIf('--card-border-radius', 'card-border-radius');
-  setIf('--bar-background-color', 'bar_background_color');
-  setIf('--bar-background-color', 'bar-background-color');
-  setIf('--icon-bg-color', 'icon_bg_color');
-  setIf('--icon-bg-color', 'icon-bg-color');
-  setIf('--label-color', 'label_color');
-  setIf('--label-color', 'label-color');
-  setIf('--value-color', 'value_color');
-  setIf('--value-color', 'value-color');
-  setIf('--bar-fill-color', 'bar_fill_color');
-  setIf('--bar-fill-color', 'bar-fill-color');
-  setIf('--icon-color', 'icon_color');
-  setIf('--icon-color', 'icon-color');
-  // Dark counterparts (explicit names ending with _dark). Also accept
-  // hyphenated variants so older configs still work.
-  setIf('--card-background-dark', 'card_background_color_dark');
-  setIf('--card-background-dark', 'card-background-color-dark');
-  setIf('--card-border-color-dark', 'card_border_color_dark');
-  setIf('--card-border-color-dark', 'card-border-color-dark');
-  setIf('--bar-background-color-dark', 'bar_background_color_dark');
-  setIf('--bar-background-color-dark', 'bar-background-color-dark');
-  setIf('--icon-bg-color-dark', 'icon_bg_color_dark');
-  setIf('--icon-bg-color-dark', 'icon-bg-color-dark');
-  setIf('--label-color-dark', 'label_color_dark');
-  setIf('--label-color-dark', 'label-color-dark');
-  setIf('--value-color-dark', 'value_color_dark');
-  setIf('--value-color-dark', 'value-color-dark');
-  setIf('--bar-fill-color-dark', 'bar_fill_color_dark');
-  setIf('--bar-fill-color-dark', 'bar-fill-color-dark');
-  setIf('--icon-color-dark', 'icon_color_dark');
-  setIf('--icon-color-dark', 'icon-color-dark');
+    // Normalize configuration keys using a canonical naming scheme and many aliases
+    // This keeps setConfig concise and makes it easy to add new canonical keys later.
 
-  // If users didn't provide explicit dark variants, derive reasonable
-  // dark-mode fallbacks from the provided normal colors. This keeps
-  // explicit `_dark` keys authoritative while improving theme fidelity
-  // when users only specify a single color.
-  const deriveIfMissing = (darkCssVar, normalCfgKeys) => {
-    // check if any dark config key already provided
-    const darkProvided = normalCfgKeys.some(k => (this._config[`${k}_dark`] !== undefined) || (this._config[`${k}-dark`] !== undefined));
-    if (darkProvided) return;
-    // find first normal value provided
-    let normalVal = null;
-    for (const k of normalCfgKeys) {
-      if (this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') { normalVal = this._config[k]; break; }
-      // also accept hyphenated key
-      const hy = k.replace(/_/g, '-');
-      if (this._config[hy] !== undefined && this._config[hy] !== null && this._config[hy] !== '') { normalVal = this._config[hy]; break; }
-    }
-    if (!normalVal) return;
-    try {
-      const derived = this._deriveDarkColor(normalVal);
-      if (derived) {
-        try { this.style.setProperty(darkCssVar, derived); } catch (e) {}
-        if (this._containerEl) this._containerEl.style.setProperty(darkCssVar, derived);
+    const aliasMap = {
+      '--card-background-color': ['card_background_color', 'card_background'],
+      '--card-border-color': ['card_border_color', 'card_border'],
+      '--card-border-radius': ['card_border_radius', 'card_border_radius_px'],
+      '--bar-background-color': ['bar_background_color', 'bar_background'],
+      '--icon-bg-color': ['icon_bg_color', 'icon_bg'],
+      '--label-color': ['label_color', 'labelColor'],
+      '--value-color': ['value_color', 'valueColor'],
+      '--bar-fill-color': ['bar_fill_color', 'bar_fill_color_hex', 'barFillColor'],
+      '--icon-color': ['icon_color', 'iconColor']
+    };
+
+    for (const [cssVar, keys] of Object.entries(aliasMap)) {
+      for (const k of keys) {
+        if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
+          setIf(cssVar, this._config[k]);
+          break;
+        }
       }
-    } catch (e) {}
-  };
-
-  // Derive sensible dark fallbacks for common visual CSS variables when missing
-  deriveIfMissing('--card-background-dark', ['card_background_color', 'card-background-color']);
-  deriveIfMissing('--card-border-color-dark', ['card_border_color', 'card-border-color']);
-  deriveIfMissing('--bar-background-color-dark', ['bar_background_color', 'bar-background-color']);
-  deriveIfMissing('--bar-fill-color-dark', ['bar_fill_color', 'bar-fill-color']);
-  deriveIfMissing('--icon-bg-color-dark', ['icon_bg_color', 'icon-bg-color']);
-  deriveIfMissing('--label-color-dark', ['label_color', 'label-color']);
-  deriveIfMissing('--value-color-dark', ['value_color', 'value-color']);
-  deriveIfMissing('--icon-color-dark', ['icon_color', 'icon-color']);
+    }
 
     // value font weight still allowed via config boolean
     const valueWeight = this._config.value_bold ? '700' : '400';
-    try { this.style.setProperty('--value-font-weight', valueWeight); } catch (e) {}
+    this.style.setProperty('--value-font-weight', valueWeight);
     if (this._containerEl) this._containerEl.style.setProperty('--value-font-weight', valueWeight);
+
+    // Dark-mode alias map (per-property dark variants)
+    const darkAliasMap = {
+      '--card-background-dark': ['card_background_color_dark', 'card_background_dark', 'cardBackgroundDark'],
+      '--card-border-color-dark': ['card_border_color_dark', 'card_border_dark', 'cardBorderColorDark'],
+      '--bar-background-color-dark': ['bar_background_color_dark', 'bar_background_dark', 'barBackgroundColorDark'],
+      '--icon-bg-color-dark': ['icon_bg_color_dark', 'icon_bg_dark', 'iconBgColorDark'],
+      '--label-color-dark': ['label_color_dark', 'labelColorDark'],
+      '--value-color-dark': ['value_color_dark', 'valueColorDark'],
+      '--bar-fill-color-dark': ['bar_fill_color_dark', 'bar_fill_dark', 'barFillColorDark'],
+      '--icon-color-dark': ['icon_color_dark', 'iconColorDark']
+    };
+
+    for (const [cssVar, keys] of Object.entries(darkAliasMap)) {
+      for (const k of keys) {
+        if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
+          setIf(cssVar, this._config[k]);
+          break;
+        }
+      }
+    }
 
     // Parse up to 5 entities. Support two styles:
     // - config.entities: array of strings or objects
     // - config.entity, config.entity_2, config.entity_3, ...
     this._entities = [];
     if (Array.isArray(this._config.entities) && this._config.entities.length > 0) {
-      if (this._config.entities.length > 5) {
-        this._renderError('Maximal 5 entities sind erlaubt');
-        return;
-      }
+      if (this._config.entities.length > 5) throw new Error('Maximal 5 entities sind erlaubt');
       for (const e of this._config.entities) {
         if (typeof e === 'string') {
           this._entities.push(Object.assign({}, this._config, { entity: e }));
@@ -530,13 +481,11 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (this._entities.length === 0) {
-      this._renderError('Mindestens eine Entity muss angegeben werden (z.B. `entity: sensor.temp`).');
-      return;
+      throw new Error('Mindestens eine Entity muss angegeben werden');
     }
 
     if (this._entities.length > 5) {
-      this._renderError('Maximal 5 Entities sind erlaubt. Bitte reduziere die Anzahl.');
-      return;
+      throw new Error('Maximal 5 entities sind erlaubt');
     }
 
     // Show/hide row elements according to number of entities configured
@@ -550,9 +499,6 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     }
-
-    // Clear any previous config error now that parsing succeeded
-    this._clearError();
 
     // Heading display
     if (this._headingEl) {
@@ -911,69 +857,10 @@ class SimpleBarCard extends HTMLElement {
    * Hilfsmethoden & Utilities
    ***************************/
   _renderError(message) {
-    // Show a simple, non-destructive in-card error message. Keep the card
-    // skeleton and styles intact so the user can fix configuration without
-    // losing the card structure.
-    try {
-      if (!this._containerEl) {
-        // rebuild skeleton if it was previously cleared
-        this.shadowRoot.innerHTML = '';
-        this._buildSkeleton();
-      }
-      let err = this._containerEl.querySelector('.config-error');
-      if (!err) {
-        err = document.createElement('div');
-        err.className = 'config-error';
-        this._containerEl.insertBefore(err, this._containerEl.firstChild);
-      }
-      err.textContent = message;
-      const entities = this._containerEl.querySelector('.entities');
-      if (entities) entities.style.display = 'none';
-    } catch (e) {
-      // Fallback: if anything goes wrong, at least replace the root so the
-      // error is still visible.
-      this.shadowRoot.innerHTML = `${this._commonStyles()}<div class="config-error">${message}</div>`;
-    }
-  }
-
-  _clearError() {
-    try {
-      if (!this._containerEl) return;
-      const err = this._containerEl.querySelector('.config-error');
-      if (err) err.remove();
-      const entities = this._containerEl.querySelector('.entities');
-      if (entities) entities.style.display = '';
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  _renderWarning(message) {
-    // Do not show warnings if an error is currently displayed
-    try {
-      if (!this._containerEl) return;
-      if (this._containerEl.querySelector('.config-error')) return;
-      let warn = this._containerEl.querySelector('.config-warning');
-      if (!warn) {
-        warn = document.createElement('div');
-        warn.className = 'config-warning';
-        // Insert warning just above the entities list
-        const entities = this._containerEl.querySelector('.entities');
-        if (entities) this._containerEl.insertBefore(warn, entities);
-        else this._containerEl.insertBefore(warn, this._containerEl.firstChild);
-      }
-      warn.textContent = message;
-    } catch (e) {
-      // ignore best-effort warnings
-    }
-  }
-
-  _clearWarning() {
-    try {
-      if (!this._containerEl) return;
-      const warn = this._containerEl.querySelector('.config-warning');
-      if (warn) warn.remove();
-    } catch (e) {}
+    this.shadowRoot.innerHTML = `
+      ${this._commonStyles()}
+      <div style="padding:8px;color:#c00;font-weight:600;">${message}</div>
+    `;
   }
 
   _calculatePercent(value) {
@@ -1024,35 +911,6 @@ class SimpleBarCard extends HTMLElement {
       });
     } catch (e) {
       // best-effort only
-    }
-  }
-
-  // Derive a reasonable dark-mode color from a provided color string.
-  // Accepts hex, rgb/rgba, named colors (via browser compute) and returns
-  // an rgb(a) string that is darker to work in dark mode.
-  _deriveDarkColor(color) {
-    try {
-      if (!color) return null;
-      // Create a temporary element to let the browser normalize the color
-      const tmp = document.createElement('div');
-      tmp.style.color = color;
-      tmp.style.display = 'none';
-      document.body.appendChild(tmp);
-      const computed = window.getComputedStyle(tmp).color; // e.g. 'rgb(34, 34, 34)' or 'rgba(255, 0, 0, 0.5)'
-      document.body.removeChild(tmp);
-      if (!computed) return null;
-      const m = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
-      if (!m) return null;
-      let r = Number(m[1]), g = Number(m[2]), b = Number(m[3]);
-      const a = (m[4] !== undefined) ? Number(m[4]) : 1;
-      // Darken factor: reduce brightness but keep enough contrast
-      const factor = 0.65;
-      r = Math.max(0, Math.min(255, Math.round(r * factor)));
-      g = Math.max(0, Math.min(255, Math.round(g * factor)));
-      b = Math.max(0, Math.min(255, Math.round(b * factor)));
-      return (a < 1) ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
-    } catch (e) {
-      return null;
     }
   }
 

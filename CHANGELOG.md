@@ -2,19 +2,6 @@
 
 All notable changes to this project are documented here. Entries are listed in reverse chronological order.
 
-## [v0.2.1-beta] - 2025-11-03
-
-Summary
-- Polish and validation: README examples polished, config validation hardened and user-friendly in-card errors/warnings added. Reduced ambiguous CSS aliasing to a small explicit set of override keys.
-
-Highlights
-- Added defensive validation in `setConfig()` (numeric checks for `min`/`max`, `decimals`, `bipolar_mode`, `color_thresholds`) and non-destructive in-card error and warning UI.
-- README rewritten/cleaned with copy-paste-ready YAML examples and documented explicit CSS override keys.
-- Removed broad alias normalization in favor of a minimal, explicit mapping to reduce surprising collisions.
-
-Notes
-- This release is primarily stability and documentation focused (preparing for wider beta testing).
-
 ## [v0.2.0-beta] - 2025-11-02
 
 Summary
@@ -95,4 +82,3 @@ Improvements & Fixes
 
 Notes
 - For usage examples, canonical key names, aliases and migration tips see `README.md`.
-
