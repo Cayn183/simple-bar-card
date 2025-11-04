@@ -106,8 +106,8 @@ class SimpleBarCard extends HTMLElement {
             margin: 0 auto;
             line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
             padding: 0;
-            /* Prefer explicit CSS variable; otherwise inherit from surrounding text/theme */
-            color: var(--icon-color, inherit);
+            /* Prefer explicit CSS variable, otherwise use Home Assistant theme icon color */
+            color: var(--icon-color, var(--paper-item-icon-color, inherit));
           }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -268,8 +268,8 @@ class SimpleBarCard extends HTMLElement {
           }
 
           .ha-icon.bar-icon {
-            /* Prefer explicit dark-mode variable, otherwise fall back to the normal icon variable or inherit */
-            color: var(--icon-color-dark, var(--icon-color, inherit));
+            /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
           }
         }
       </style>
@@ -500,21 +500,6 @@ class SimpleBarCard extends HTMLElement {
       }
     }
 
-    // Propagate icon-color CSS variables to each row root so media-query dark-mode works
-    // (Background works because .container wraps everything; icons need per-row propagation)
-    if (this._rowEls && this._rowEls.length) {
-      // Get values directly from config (more reliable than reading CSS variables)
-      const iconColor = this._config.icon_color || this._config.iconColor;
-      const iconColorDark = this._config.icon_color_dark || this._config.iconColorDark;
-      
-      for (let i = 0; i < this._rowEls.length; i++) {
-        const rowRoot = this._rowEls[i].root;
-        // Set global icon color variables on each row
-        if (iconColor) rowRoot.style.setProperty('--icon-color', iconColor);
-        if (iconColorDark) rowRoot.style.setProperty('--icon-color-dark', iconColorDark);
-      }
-    }
-
     // Heading display
     if (this._headingEl) {
       if (this._config.heading_show) {
@@ -556,69 +541,6 @@ class SimpleBarCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._render();
-  }
-
-  connectedCallback() {
-    // Listen for OS-level dark mode changes
-    try {
-      this._mql = window.matchMedia('(prefers-color-scheme: dark)');
-      if (this._mql) {
-        // support both newer and older APIs
-        if (typeof this._mql.addEventListener === 'function') this._mql.addEventListener('change', this._onThemeChange.bind(this));
-        else if (typeof this._mql.addListener === 'function') this._mql.addListener(this._onThemeChange.bind(this));
-      }
-    } catch (e) {}
-
-    // Observe attribute/style changes on documentElement/body which Home Assistant
-    // may use to toggle theme variables. On changes, refresh icon fills so SVGs
-    // can inherit currentColor when appropriate.
-    try {
-      this._themeObserver = new MutationObserver(() => this._onThemeChange());
-      if (document && document.documentElement) this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
-      if (document && document.body) this._themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
-    } catch (e) {}
-
-    // Initial cleanup to ensure no stale fills remain
-    this._onThemeChange();
-  }
-
-  disconnectedCallback() {
-    try {
-      if (this._mql) {
-        if (typeof this._mql.removeEventListener === 'function') this._mql.removeEventListener('change', this._onThemeChange.bind(this));
-        else if (typeof this._mql.removeListener === 'function') this._mql.removeListener(this._onThemeChange.bind(this));
-        this._mql = null;
-      }
-    } catch (e) {}
-    try { if (this._themeObserver) this._themeObserver.disconnect(); } catch (e) {}
-  }
-
-  _onThemeChange() {
-    // Remove hard-coded SVG fills for all icons if there is no explicit
-    // icon_color in config or per-entity, allowing CSS/currentColor to apply.
-    try {
-      // top-level icon (when only single-row mode is used)
-      if (this._rowEls && this._rowEls.length) {
-        for (let i = 0; i < this._rowEls.length; i++) {
-          const r = this._rowEls[i];
-          // check per-entity explicit color
-          const per = (this._entities && this._entities[i]) ? this._entities[i] : null;
-          const explicit = per && (per.icon_color !== undefined && per.icon_color !== null && per.icon_color !== '');
-          if (!explicit) {
-            try { this._applyInnerSvgColor(r.iconEl, null); } catch (e) {}
-          }
-        }
-      }
-      // If a single global icon was used (this._iconEl), clear if no explicit
-      if (this._iconEl) {
-        const globalExplicit = this._config && (this._config.icon_color !== undefined && this._config.icon_color !== null && this._config.icon_color !== '');
-        if (!globalExplicit) {
-          try { this._applyInnerSvgColor(this._iconEl, null); } catch (e) {}
-        }
-      }
-    } catch (e) {
-      // best-effort
-    }
   }
 
   /***************************
@@ -775,27 +697,20 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Only set per-entity icon color if explicitly provided
-      // Otherwise, the global --icon-color from setConfig remains active
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        this._containerEl.style.setProperty('--icon-color', state.iconColor);
+        this._iconEl.style.color = state.iconColor;
+      } else {
+        this._iconEl.style.removeProperty('color');
       }
-      // Note: Don't remove --icon-color if state.iconColor is undefined!
-      // undefined means "use global config", not "remove color"
-      
-      // Apply SVG fill based on computed color (after CSS variable is set)
+      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
+      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
+      // we traverse shadowRoots to find the svg and set path fills. This forces
+      // the visible icon color to match the theme or an explicit icon_color.
       try {
-        // Use a small delay to let CSS variables propagate, then read computed style
-        requestAnimationFrame(() => {
-          try {
-            const computedColor = window.getComputedStyle(this._iconEl).color;
-            if (computedColor && computedColor !== 'rgba(0, 0, 0, 0)') {
-              this._applyInnerSvgColor(this._iconEl, computedColor);
-            } else {
-              this._applyInnerSvgColor(this._iconEl, null);
-            }
-          } catch (e) {}
-        });
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+          ? state.iconColor
+          : window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
@@ -846,13 +761,12 @@ class SimpleBarCard extends HTMLElement {
     last.rawValue = state.rawValue;
 
     // Always force SVG fill to match computed color after every update (covers theme changes)
-      try {
-        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-          this._applyInnerSvgColor(this._iconEl, state.iconColor);
-        } else {
-          this._applyInnerSvgColor(this._iconEl, null);
-        }
-      } catch (e) {}
+    try {
+      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+        ? state.iconColor
+        : window.getComputedStyle(this._iconEl).color;
+      this._applyInnerSvgColor(this._iconEl, desired);
+    } catch (e) {}
   }
 
   // Apply state to a specific row index using the cached row elements
@@ -888,27 +802,11 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Only set per-entity icon color if explicitly provided
-      // Otherwise, the global --icon-color from setConfig remains active
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        rowEls.root.style.setProperty('--icon-color', state.iconColor);
-      }
-      // Note: Don't remove --icon-color if state.iconColor is undefined!
-      // undefined means "use global config", not "remove color"
-      
-      // Apply SVG fill based on computed color (after CSS variable is set)
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
+      else rowEls.iconEl.style.removeProperty('color');
       try {
-        // Use a small delay to let CSS variables propagate, then read computed style
-        requestAnimationFrame(() => {
-          try {
-            const computedColor = window.getComputedStyle(rowEls.iconEl).color;
-            if (computedColor && computedColor !== 'rgba(0, 0, 0, 0)') {
-              this._applyInnerSvgColor(rowEls.iconEl, computedColor);
-            } else {
-              this._applyInnerSvgColor(rowEls.iconEl, null);
-            }
-          } catch (e) {}
-        });
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
@@ -1002,21 +900,12 @@ class SimpleBarCard extends HTMLElement {
       const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
       if (!svg) return;
 
-      // Compute a concrete color value if needed. If no explicit color is
-      // provided, remove any hard-coded `fill` attributes so the SVG can
-      // inherit `currentColor` from CSS (this allows theme/dark changes to
-      // propagate without stale attributes overriding them).
+      // Compute a concrete color value if needed
       const fillVal = color || window.getComputedStyle(iconEl).color || null;
-      const paths = svg.querySelectorAll('path, circle, rect, polygon');
-      if (!fillVal) {
-        // Remove explicit fills so CSS/currentColor can apply
-        paths.forEach(p => {
-          try { p.removeAttribute('fill'); } catch (e) {}
-        });
-        return;
-      }
+      if (!fillVal) return;
 
-      // Set fill on path elements when an explicit color is requested
+      // Set fill on path elements (safe and effective)
+      const paths = svg.querySelectorAll('path, circle, rect, polygon');
       paths.forEach(p => {
         try { p.setAttribute('fill', fillVal); } catch (e) {}
       });
