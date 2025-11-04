@@ -746,184 +746,25 @@ class SimpleBarCard extends HTMLElement {
 
   // Apply state to a specific row index using the cached row elements
   _applyStateRow(index, state) {
-    if (!state) return;
-    const rowEls = this._rowEls[index];
-    const last = this._lastStateRows[index] || {};
+    const last = this._lastState[index];
 
-    // Mode switch
-    if (state.modeBipolar !== last.modeBipolar) {
-      if (state.modeBipolar) {
-        rowEls.barFillEl.style.display = 'none';
-        rowEls.barFillNegEl.style.display = '';
-        rowEls.barFillPosEl.style.display = '';
-        rowEls.zeroLineEl.style.display = '';
-        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
-        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
-      } else {
-        rowEls.barFillEl.style.display = '';
-        rowEls.barFillNegEl.style.display = 'none';
-        rowEls.barFillPosEl.style.display = 'none';
-        rowEls.zeroLineEl.style.display = 'none';
-        rowEls.barFillEl.style.transform = `scaleX(${state.percent || 0})`;
-      }
-      last.modeBipolar = state.modeBipolar;
-    }
-
-    // Icon
+    // Update icon
     if (state.icon !== last.icon) {
-      if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
-      else rowEls.iconEl.removeAttribute('icon');
+      this._iconEl.icon = state.icon;
       last.icon = state.icon;
     }
 
-    if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
-      else rowEls.iconEl.style.removeProperty('color');
-      try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
-      } catch (e) {}
-      last.iconColor = state.iconColor;
-    }
-
-    // Label
-    if (state.displayName !== last.displayName) {
-      rowEls.labelEl.textContent = state.displayName;
-      last.displayName = state.displayName;
-    }
-
-    // Value
-    if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
-      rowEls.valueEl.textContent = state.formattedValueWithUnit;
-      last.formattedValueWithUnit = state.formattedValueWithUnit;
-    }
-
-    // Fill color (set on the row root so --bar-fill-color applies)
-    if (state.fillColor !== last.fillColor) {
-      rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
-      last.fillColor = state.fillColor;
-    }
-
-    // Transforms for scales/percent
-    if (state.modeBipolar) {
-      if (state.negScale !== last.negScale) {
-        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale})`;
-        last.negScale = state.negScale;
-      }
-      if (state.posScale !== last.posScale) {
-        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale})`;
-        last.posScale = state.posScale;
-      }
-      last.percent = undefined;
-    } else {
-      if (state.percent !== last.percent) {
-        rowEls.barFillEl.style.transform = `scaleX(${state.percent})`;
-        last.percent = state.percent;
-      }
-      last.negScale = undefined;
-      last.posScale = undefined;
-    }
-
-    last.rawValue = state.rawValue;
-    this._lastStateRows[index] = last;
-  }
-
-  /***************************
-   * Lifecycle
-   ***************************/
-  connectedCallback() {
-    super.connectedCallback();
-    this._observeTheme();
-  }
-
-  disconnectedCallback() {
-    this._unobserveTheme();
-    super.disconnectedCallback();
-  }
-
-  /***************************
-   * Event handlers
-   ***************************/
-  _observeTheme() {
-    if (this._themeObserver) return; // Already observing
-    this._themeObserver = new MutationObserver(() => this._updateIconColor());
-    this._themeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['theme'],
-    });
-  }
-
-  _unobserveTheme() {
-    if (this._themeObserver) {
-      this._themeObserver.disconnect();
-      this._themeObserver = null;
-    }
-  }
-
-  _updateIconColor() {
-    if (!this._iconEl) return;
+    // Force the inner SVG to adopt the color computed from CSS variables.
+    // This is necessary because ha-icon does not automatically propagate its
+    // color to the fill of the inner ha-svg-icon's <path> elements.
+    // We use rAF to ensure we read the color *after* the browser has applied
+    // any theme/media-query changes.
     try {
-      // Use rAF to ensure styles are computed after the theme attribute has changed
       requestAnimationFrame(() => {
         const desired = window.getComputedStyle(this._iconEl).color;
         this._applyInnerSvgColor(this._iconEl, desired);
       });
-    } catch (e) {
-      // Ignore errors, e.g. if element is not rendered yet
-    }
-  }
-
-  /***************************
-   * Data processing & state calculation
-   ***************************/
-  _calculatePercentWithConfig(value, cfg) {
-    const min = Number(cfg.min ?? this._config.min);
-    const max = Number(cfg.max ?? this._config.max);
-    if (max === min) return 0;
-    let percent = ((value - min) / (max - min)) * 100;
-    return Math.min(Math.max(percent, 0), 100);
-  }
-
-  _applyState(state) {
-    if (!state) return;
-    // If per-row rendering is active, route single-state updates to row 0
-    if (this._rowEls && this._rowEls.length) {
-      this._applyStateRow(0, state);
-      return;
-    }
-
-    // Short-circuit if nothing changed (compare relevant fields)
-    const last = this._lastState;
-
-    // Mode change handling
-    if (state.modeBipolar !== last.modeBipolar) {
-      // Show/hide elements appropriately
-      if (state.modeBipolar) {
-        // ensure bipolar elements visible
-        this._barFillEl.style.display = 'none';
-        this._barFillNegEl.style.display = '';
-        this._barFillPosEl.style.display = '';
-        this._zeroLineEl.style.display = '';
-        // set initial transforms
-        this._barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
-        this._barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
-      } else {
-        // standard mode
-        this._barFillEl.style.display = '';
-        this._barFillNegEl.style.display = 'none';
-        this._barFillPosEl.style.display = 'none';
-        this._zeroLineEl.style.display = 'none';
-        this._barFillEl.style.transform = `scaleX(${state.percent || 0})`;
-      }
-      last.modeBipolar = state.modeBipolar;
-    }
-
-    // Update icon if changed
-    if (state.icon !== last.icon) {
-      this._iconEl.icon = state.icon;
-      this._updateIconColor(); // Set initial color
-      last.icon = state.icon;
-    }
+    } catch (e) { /* ignore */ }
 
     // Update displayName
     if (state.displayName !== last.displayName) {
@@ -968,97 +809,6 @@ class SimpleBarCard extends HTMLElement {
     }
 
     // store rawValue
-    last.rawValue = state.rawValue;
-
-    // Always force SVG fill to match computed color after every update (covers theme changes)
-    try {
-      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-        ? state.iconColor
-        : window.getComputedStyle(this._iconEl).color;
-      this._applyInnerSvgColor(this._iconEl, desired);
-    } catch (e) {}
-  }
-
-  // Apply state to a specific row index using the cached row elements
-  _applyStateRow(index, state) {
-    if (!state) return;
-    const rowEls = this._rowEls[index];
-    const last = this._lastStateRows[index] || {};
-
-    // Mode switch
-    if (state.modeBipolar !== last.modeBipolar) {
-      if (state.modeBipolar) {
-        rowEls.barFillEl.style.display = 'none';
-        rowEls.barFillNegEl.style.display = '';
-        rowEls.barFillPosEl.style.display = '';
-        rowEls.zeroLineEl.style.display = '';
-        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
-        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
-      } else {
-        rowEls.barFillEl.style.display = '';
-        rowEls.barFillNegEl.style.display = 'none';
-        rowEls.barFillPosEl.style.display = 'none';
-        rowEls.zeroLineEl.style.display = 'none';
-        rowEls.barFillEl.style.transform = `scaleX(${state.percent || 0})`;
-      }
-      last.modeBipolar = state.modeBipolar;
-    }
-
-    // Icon
-    if (state.icon !== last.icon) {
-      if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
-      else rowEls.iconEl.removeAttribute('icon');
-      last.icon = state.icon;
-    }
-
-    if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
-      else rowEls.iconEl.style.removeProperty('color');
-      try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
-      } catch (e) {}
-      last.iconColor = state.iconColor;
-    }
-
-    // Label
-    if (state.displayName !== last.displayName) {
-      rowEls.labelEl.textContent = state.displayName;
-      last.displayName = state.displayName;
-    }
-
-    // Value
-    if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
-      rowEls.valueEl.textContent = state.formattedValueWithUnit;
-      last.formattedValueWithUnit = state.formattedValueWithUnit;
-    }
-
-    // Fill color (set on the row root so --bar-fill-color applies)
-    if (state.fillColor !== last.fillColor) {
-      rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
-      last.fillColor = state.fillColor;
-    }
-
-    // Transforms for scales/percent
-    if (state.modeBipolar) {
-      if (state.negScale !== last.negScale) {
-        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale})`;
-        last.negScale = state.negScale;
-      }
-      if (state.posScale !== last.posScale) {
-        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale})`;
-        last.posScale = state.posScale;
-      }
-      last.percent = undefined;
-    } else {
-      if (state.percent !== last.percent) {
-        rowEls.barFillEl.style.transform = `scaleX(${state.percent})`;
-        last.percent = state.percent;
-      }
-      last.negScale = undefined;
-      last.posScale = undefined;
-    }
-
     last.rawValue = state.rawValue;
     this._lastStateRows[index] = last;
   }
