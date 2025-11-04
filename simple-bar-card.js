@@ -106,8 +106,8 @@ class SimpleBarCard extends HTMLElement {
             margin: 0 auto;
             line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
             padding: 0;
-            /* Prefer explicit CSS variable, otherwise use Home Assistant theme icon color */
-            color: var(--icon-color, var(--paper-item-icon-color, inherit));
+            /* Prefer explicit CSS variable; otherwise inherit from surrounding text/theme */
+            color: var(--icon-color, inherit);
           }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -268,8 +268,8 @@ class SimpleBarCard extends HTMLElement {
           }
 
           .ha-icon.bar-icon {
-            /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
-            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
+            /* Prefer explicit dark-mode variable, otherwise fall back to the normal icon variable or inherit */
+            color: var(--icon-color-dark, var(--icon-color, inherit));
           }
         }
       </style>
@@ -707,10 +707,12 @@ class SimpleBarCard extends HTMLElement {
       // we traverse shadowRoots to find the svg and set path fills. This forces
       // the visible icon color to match the theme or an explicit icon_color.
       try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-          ? state.iconColor
-          : window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
+        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+          this._applyInnerSvgColor(this._iconEl, state.iconColor);
+        } else {
+          // No explicit color: remove hard-coded fills so CSS/currentColor can apply
+          this._applyInnerSvgColor(this._iconEl, null);
+        }
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
@@ -761,12 +763,13 @@ class SimpleBarCard extends HTMLElement {
     last.rawValue = state.rawValue;
 
     // Always force SVG fill to match computed color after every update (covers theme changes)
-    try {
-      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-        ? state.iconColor
-        : window.getComputedStyle(this._iconEl).color;
-      this._applyInnerSvgColor(this._iconEl, desired);
-    } catch (e) {}
+      try {
+        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+          this._applyInnerSvgColor(this._iconEl, state.iconColor);
+        } else {
+          this._applyInnerSvgColor(this._iconEl, null);
+        }
+      } catch (e) {}
   }
 
   // Apply state to a specific row index using the cached row elements
@@ -805,8 +808,11 @@ class SimpleBarCard extends HTMLElement {
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
       else rowEls.iconEl.style.removeProperty('color');
       try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
+        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+          this._applyInnerSvgColor(rowEls.iconEl, state.iconColor);
+        } else {
+          this._applyInnerSvgColor(rowEls.iconEl, null);
+        }
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
@@ -900,12 +906,21 @@ class SimpleBarCard extends HTMLElement {
       const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
       if (!svg) return;
 
-      // Compute a concrete color value if needed
+      // Compute a concrete color value if needed. If no explicit color is
+      // provided, remove any hard-coded `fill` attributes so the SVG can
+      // inherit `currentColor` from CSS (this allows theme/dark changes to
+      // propagate without stale attributes overriding them).
       const fillVal = color || window.getComputedStyle(iconEl).color || null;
-      if (!fillVal) return;
-
-      // Set fill on path elements (safe and effective)
       const paths = svg.querySelectorAll('path, circle, rect, polygon');
+      if (!fillVal) {
+        // Remove explicit fills so CSS/currentColor can apply
+        paths.forEach(p => {
+          try { p.removeAttribute('fill'); } catch (e) {}
+        });
+        return;
+      }
+
+      // Set fill on path elements when an explicit color is requested
       paths.forEach(p => {
         try { p.setAttribute('fill', fillVal); } catch (e) {}
       });
