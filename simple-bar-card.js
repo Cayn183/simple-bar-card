@@ -27,7 +27,8 @@ class SimpleBarCard extends HTMLElement {
       posScale: undefined,
       displayName: undefined,
       formattedValueWithUnit: undefined,
-      icon: undefined
+      icon: undefined,
+      iconColor: undefined
     };
 
     // rAF batching
@@ -575,6 +576,8 @@ class SimpleBarCard extends HTMLElement {
         icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
       }
 
+      const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
+
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -597,11 +600,11 @@ class SimpleBarCard extends HTMLElement {
           else if (clampedValue > 0) posScale = Math.min(clampedValue / maxAbs, 1);
         }
 
-        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, rawValue };
+        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
         this._scheduleRowUpdate(i, newState);
       } else {
         const percent = this._calculatePercentWithConfig(rawValue, per) / 100;
-        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, rawValue };
+        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
         this._scheduleRowUpdate(i, newState);
       }
     }
@@ -685,9 +688,31 @@ class SimpleBarCard extends HTMLElement {
 
     // Update icon if changed
     if (state.icon !== last.icon) {
-      this._iconEl.icon = state.icon;
-      this._updateIconColor(); // Set initial color
+      if (state.icon) {
+        this._iconEl.setAttribute('icon', state.icon);
+      } else {
+        this._iconEl.removeAttribute('icon');
+      }
       last.icon = state.icon;
+    }
+
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        this._iconEl.style.color = state.iconColor;
+      } else {
+        this._iconEl.style.removeProperty('color');
+      }
+      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
+      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
+      // we traverse shadowRoots to find the svg and set path fills. This forces
+      // the visible icon color to match the theme or an explicit icon_color.
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
+          ? state.iconColor
+          : window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
+      } catch (e) {}
+      last.iconColor = state.iconColor;
     }
 
     // Update displayName
@@ -746,69 +771,84 @@ class SimpleBarCard extends HTMLElement {
 
   // Apply state to a specific row index using the cached row elements
   _applyStateRow(index, state) {
-    const last = this._lastState[index];
+    if (!state) return;
+    const rowEls = this._rowEls[index];
+    const last = this._lastStateRows[index] || {};
 
-    // Update icon
+    // Mode switch
+    if (state.modeBipolar !== last.modeBipolar) {
+      if (state.modeBipolar) {
+        rowEls.barFillEl.style.display = 'none';
+        rowEls.barFillNegEl.style.display = '';
+        rowEls.barFillPosEl.style.display = '';
+        rowEls.zeroLineEl.style.display = '';
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale || 0})`;
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale || 0})`;
+      } else {
+        rowEls.barFillEl.style.display = '';
+        rowEls.barFillNegEl.style.display = 'none';
+        rowEls.barFillPosEl.style.display = 'none';
+        rowEls.zeroLineEl.style.display = 'none';
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent || 0})`;
+      }
+      last.modeBipolar = state.modeBipolar;
+    }
+
+    // Icon
     if (state.icon !== last.icon) {
-      this._iconEl.icon = state.icon;
+      if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
+      else rowEls.iconEl.removeAttribute('icon');
       last.icon = state.icon;
     }
 
-    // Force the inner SVG to adopt the color computed from CSS variables.
-    // This is necessary because ha-icon does not automatically propagate its
-    // color to the fill of the inner ha-svg-icon's <path> elements.
-    // We use rAF to ensure we read the color *after* the browser has applied
-    // any theme/media-query changes.
-    try {
-      requestAnimationFrame(() => {
-        const desired = window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
-      });
-    } catch (e) { /* ignore */ }
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
+      else rowEls.iconEl.style.removeProperty('color');
+      try {
+        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
+      } catch (e) {}
+      last.iconColor = state.iconColor;
+    }
 
-    // Update displayName
+    // Label
     if (state.displayName !== last.displayName) {
-      this._labelEl.textContent = state.displayName;
+      rowEls.labelEl.textContent = state.displayName;
       last.displayName = state.displayName;
     }
 
-    // Update formatted value
+    // Value
     if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
-      this._valueEl.textContent = state.formattedValueWithUnit;
+      rowEls.valueEl.textContent = state.formattedValueWithUnit;
       last.formattedValueWithUnit = state.formattedValueWithUnit;
     }
 
-    // Update fill color
+    // Fill color (set on the row root so --bar-fill-color applies)
     if (state.fillColor !== last.fillColor) {
-      // Set CSS variable on container for fills to use
-      this._containerEl.style.setProperty('--bar-fill-color', state.fillColor);
+      rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
     }
 
-    // Update bar transform depending on mode
+    // Transforms for scales/percent
     if (state.modeBipolar) {
-      // negScale / posScale each 0..1
       if (state.negScale !== last.negScale) {
-        this._barFillNegEl.style.transform = `scaleX(${state.negScale})`;
+        rowEls.barFillNegEl.style.transform = `scaleX(${state.negScale})`;
         last.negScale = state.negScale;
       }
       if (state.posScale !== last.posScale) {
-        this._barFillPosEl.style.transform = `scaleX(${state.posScale})`;
+        rowEls.barFillPosEl.style.transform = `scaleX(${state.posScale})`;
         last.posScale = state.posScale;
       }
-      // ensure standard not changed
       last.percent = undefined;
     } else {
       if (state.percent !== last.percent) {
-        this._barFillEl.style.transform = `scaleX(${state.percent})`;
+        rowEls.barFillEl.style.transform = `scaleX(${state.percent})`;
         last.percent = state.percent;
       }
-      // ensure bipolar not changed
       last.negScale = undefined;
       last.posScale = undefined;
     }
 
-    // store rawValue
     last.rawValue = state.rawValue;
     this._lastStateRows[index] = last;
   }
