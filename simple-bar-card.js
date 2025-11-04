@@ -503,11 +503,13 @@ class SimpleBarCard extends HTMLElement {
     // Propagate icon-color CSS variables to each row root so media-query dark-mode works
     // (Background works because .container wraps everything; icons need per-row propagation)
     if (this._rowEls && this._rowEls.length) {
+      // Get values directly from config (more reliable than reading CSS variables)
+      const iconColor = this._config.icon_color || this._config.iconColor;
+      const iconColorDark = this._config.icon_color_dark || this._config.iconColorDark;
+      
       for (let i = 0; i < this._rowEls.length; i++) {
         const rowRoot = this._rowEls[i].root;
-        // Copy global icon color variables from host/container to row
-        const iconColor = this.style.getPropertyValue('--icon-color') || (this._containerEl ? this._containerEl.style.getPropertyValue('--icon-color') : '');
-        const iconColorDark = this.style.getPropertyValue('--icon-color-dark') || (this._containerEl ? this._containerEl.style.getPropertyValue('--icon-color-dark') : '');
+        // Set global icon color variables on each row
         if (iconColor) rowRoot.style.setProperty('--icon-color', iconColor);
         if (iconColorDark) rowRoot.style.setProperty('--icon-color-dark', iconColorDark);
       }
