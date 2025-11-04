@@ -773,24 +773,26 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Don't set iconEl.style.color directly - use CSS variables only (like background does)
-      // This allows media-query dark-mode to work properly
+      // Set CSS variable on container so media-query can override it in dark mode
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         this._containerEl.style.setProperty('--icon-color', state.iconColor);
       } else {
         this._containerEl.style.removeProperty('--icon-color');
       }
-      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
-      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
-      // we traverse shadowRoots to find the svg and set path fills. This forces
-      // the visible icon color to match the theme or an explicit icon_color.
+      
+      // Apply SVG fill based on computed color (after CSS variable is set)
       try {
-        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-          this._applyInnerSvgColor(this._iconEl, state.iconColor);
-        } else {
-          // No explicit color: remove hard-coded fills so CSS/currentColor can apply
-          this._applyInnerSvgColor(this._iconEl, null);
-        }
+        // Use a small delay to let CSS variables propagate, then read computed style
+        requestAnimationFrame(() => {
+          try {
+            const computedColor = window.getComputedStyle(this._iconEl).color;
+            if (computedColor && computedColor !== 'rgba(0, 0, 0, 0)') {
+              this._applyInnerSvgColor(this._iconEl, computedColor);
+            } else {
+              this._applyInnerSvgColor(this._iconEl, null);
+            }
+          } catch (e) {}
+        });
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
@@ -883,19 +885,26 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Don't set iconEl.style.color directly - use CSS variables only (like background does)
-      // This allows media-query dark-mode to work properly
+      // Set CSS variable on row root so media-query can override it in dark mode
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         rowEls.root.style.setProperty('--icon-color', state.iconColor);
       } else {
         rowEls.root.style.removeProperty('--icon-color');
       }
+      
+      // Apply SVG fill based on computed color (after CSS variable is set)
       try {
-        if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-          this._applyInnerSvgColor(rowEls.iconEl, state.iconColor);
-        } else {
-          this._applyInnerSvgColor(rowEls.iconEl, null);
-        }
+        // Use a small delay to let CSS variables propagate, then read computed style
+        requestAnimationFrame(() => {
+          try {
+            const computedColor = window.getComputedStyle(rowEls.iconEl).color;
+            if (computedColor && computedColor !== 'rgba(0, 0, 0, 0)') {
+              this._applyInnerSvgColor(rowEls.iconEl, computedColor);
+            } else {
+              this._applyInnerSvgColor(rowEls.iconEl, null);
+            }
+          } catch (e) {}
+        });
       } catch (e) {}
       last.iconColor = state.iconColor;
     }
