@@ -500,6 +500,19 @@ class SimpleBarCard extends HTMLElement {
       }
     }
 
+    // Propagate icon-color CSS variables to each row root so media-query dark-mode works
+    // (Background works because .container wraps everything; icons need per-row propagation)
+    if (this._rowEls && this._rowEls.length) {
+      for (let i = 0; i < this._rowEls.length; i++) {
+        const rowRoot = this._rowEls[i].root;
+        // Copy global icon color variables from host/container to row
+        const iconColor = this.style.getPropertyValue('--icon-color') || (this._containerEl ? this._containerEl.style.getPropertyValue('--icon-color') : '');
+        const iconColorDark = this.style.getPropertyValue('--icon-color-dark') || (this._containerEl ? this._containerEl.style.getPropertyValue('--icon-color-dark') : '');
+        if (iconColor) rowRoot.style.setProperty('--icon-color', iconColor);
+        if (iconColorDark) rowRoot.style.setProperty('--icon-color-dark', iconColorDark);
+      }
+    }
+
     // Heading display
     if (this._headingEl) {
       if (this._config.heading_show) {
@@ -896,6 +909,16 @@ class SimpleBarCard extends HTMLElement {
     if (state.fillColor !== last.fillColor) {
       rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
+    }
+
+    // Icon color: propagate CSS variables to row level so media queries work
+    // This ensures --icon-color and --icon-color-dark are visible to .ha-icon.bar-icon
+    if (state.iconColor !== last.iconColor) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        rowEls.root.style.setProperty('--icon-color', state.iconColor);
+      } else {
+        rowEls.root.style.removeProperty('--icon-color');
+      }
     }
 
     // Transforms for scales/percent
