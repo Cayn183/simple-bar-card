@@ -543,6 +543,69 @@ class SimpleBarCard extends HTMLElement {
     this._render();
   }
 
+  connectedCallback() {
+    // Listen for OS-level dark mode changes
+    try {
+      this._mql = window.matchMedia('(prefers-color-scheme: dark)');
+      if (this._mql) {
+        // support both newer and older APIs
+        if (typeof this._mql.addEventListener === 'function') this._mql.addEventListener('change', this._onThemeChange.bind(this));
+        else if (typeof this._mql.addListener === 'function') this._mql.addListener(this._onThemeChange.bind(this));
+      }
+    } catch (e) {}
+
+    // Observe attribute/style changes on documentElement/body which Home Assistant
+    // may use to toggle theme variables. On changes, refresh icon fills so SVGs
+    // can inherit currentColor when appropriate.
+    try {
+      this._themeObserver = new MutationObserver(() => this._onThemeChange());
+      if (document && document.documentElement) this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
+      if (document && document.body) this._themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
+    } catch (e) {}
+
+    // Initial cleanup to ensure no stale fills remain
+    this._onThemeChange();
+  }
+
+  disconnectedCallback() {
+    try {
+      if (this._mql) {
+        if (typeof this._mql.removeEventListener === 'function') this._mql.removeEventListener('change', this._onThemeChange.bind(this));
+        else if (typeof this._mql.removeListener === 'function') this._mql.removeListener(this._onThemeChange.bind(this));
+        this._mql = null;
+      }
+    } catch (e) {}
+    try { if (this._themeObserver) this._themeObserver.disconnect(); } catch (e) {}
+  }
+
+  _onThemeChange() {
+    // Remove hard-coded SVG fills for all icons if there is no explicit
+    // icon_color in config or per-entity, allowing CSS/currentColor to apply.
+    try {
+      // top-level icon (when only single-row mode is used)
+      if (this._rowEls && this._rowEls.length) {
+        for (let i = 0; i < this._rowEls.length; i++) {
+          const r = this._rowEls[i];
+          // check per-entity explicit color
+          const per = (this._entities && this._entities[i]) ? this._entities[i] : null;
+          const explicit = per && (per.icon_color !== undefined && per.icon_color !== null && per.icon_color !== '');
+          if (!explicit) {
+            try { this._applyInnerSvgColor(r.iconEl, null); } catch (e) {}
+          }
+        }
+      }
+      // If a single global icon was used (this._iconEl), clear if no explicit
+      if (this._iconEl) {
+        const globalExplicit = this._config && (this._config.icon_color !== undefined && this._config.icon_color !== null && this._config.icon_color !== '');
+        if (!globalExplicit) {
+          try { this._applyInnerSvgColor(this._iconEl, null); } catch (e) {}
+        }
+      }
+    } catch (e) {
+      // best-effort
+    }
+  }
+
   /***************************
    * Haupt-Render-Methode (light & efficient)
    ***************************/
