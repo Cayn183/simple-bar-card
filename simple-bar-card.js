@@ -773,10 +773,12 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
+      // Don't set iconEl.style.color directly - use CSS variables only (like background does)
+      // This allows media-query dark-mode to work properly
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        this._iconEl.style.color = state.iconColor;
+        this._containerEl.style.setProperty('--icon-color', state.iconColor);
       } else {
-        this._iconEl.style.removeProperty('color');
+        this._containerEl.style.removeProperty('--icon-color');
       }
       // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
       // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
@@ -881,8 +883,13 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
-      else rowEls.iconEl.style.removeProperty('color');
+      // Don't set iconEl.style.color directly - use CSS variables only (like background does)
+      // This allows media-query dark-mode to work properly
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        rowEls.root.style.setProperty('--icon-color', state.iconColor);
+      } else {
+        rowEls.root.style.removeProperty('--icon-color');
+      }
       try {
         if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
           this._applyInnerSvgColor(rowEls.iconEl, state.iconColor);
@@ -909,16 +916,6 @@ class SimpleBarCard extends HTMLElement {
     if (state.fillColor !== last.fillColor) {
       rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
-    }
-
-    // Icon color: propagate CSS variables to row level so media queries work
-    // This ensures --icon-color and --icon-color-dark are visible to .ha-icon.bar-icon
-    if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        rowEls.root.style.setProperty('--icon-color', state.iconColor);
-      } else {
-        rowEls.root.style.removeProperty('--icon-color');
-      }
     }
 
     // Transforms for scales/percent
