@@ -27,8 +27,7 @@ class SimpleBarCard extends HTMLElement {
       posScale: undefined,
       displayName: undefined,
       formattedValueWithUnit: undefined,
-      icon: undefined,
-      iconColor: undefined
+      icon: undefined
     };
 
     // rAF batching
@@ -576,8 +575,6 @@ class SimpleBarCard extends HTMLElement {
         icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
       }
 
-      const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
-
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -600,11 +597,11 @@ class SimpleBarCard extends HTMLElement {
           else if (clampedValue > 0) posScale = Math.min(clampedValue / maxAbs, 1);
         }
 
-        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, rawValue };
         this._scheduleRowUpdate(i, newState);
       } else {
         const percent = this._calculatePercentWithConfig(rawValue, per) / 100;
-        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, rawValue };
         this._scheduleRowUpdate(i, newState);
       }
     }
@@ -694,25 +691,6 @@ class SimpleBarCard extends HTMLElement {
         this._iconEl.removeAttribute('icon');
       }
       last.icon = state.icon;
-    }
-
-    if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        this._iconEl.style.color = state.iconColor;
-      } else {
-        this._iconEl.style.removeProperty('color');
-      }
-      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
-      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
-      // we traverse shadowRoots to find the svg and set path fills. This forces
-      // the visible icon color to match the theme or an explicit icon_color.
-      try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-          ? state.iconColor
-          : window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
-      } catch (e) {}
-      last.iconColor = state.iconColor;
     }
 
     // Update displayName
