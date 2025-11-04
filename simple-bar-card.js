@@ -696,23 +696,31 @@ class SimpleBarCard extends HTMLElement {
       last.icon = state.icon;
     }
 
-    if (state.iconColor !== last.iconColor) {
+    // apply per-row icon color via CSS variables (light + dark)
+    // prefer variables on the row root so CSS media query picks dark fallback automatically
+    if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
+      // set or remove light icon color var
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        this._iconEl.style.color = state.iconColor;
+        rowEls.root.style.setProperty('--icon-color', state.iconColor);
       } else {
-        this._iconEl.style.removeProperty('color');
+        rowEls.root.style.removeProperty('--icon-color');
       }
-      // Ensure inner SVG paths (ha-svg-icon) use the computed color as their fill.
-      // ha-icon / ha-svg-icon render the <svg> inside their shadow roots, so
-      // we traverse shadowRoots to find the svg and set path fills. This forces
-      // the visible icon color to match the theme or an explicit icon_color.
+      // set or remove dark icon color var
+      if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
+        rowEls.root.style.setProperty('--icon-color-dark', state.iconColorDark);
+      } else {
+        rowEls.root.style.removeProperty('--icon-color-dark');
+      }
+
+      // apply to inner svg paths: compute the currently used color and set fills
       try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-          ? state.iconColor
-          : window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
+        // compute style after setting variables -> reflect current (possibly dark) color
+        const desired = window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
       } catch (e) {}
+
       last.iconColor = state.iconColor;
+      last.iconColorDark = state.iconColorDark;
     }
 
     // Update displayName
@@ -801,14 +809,25 @@ class SimpleBarCard extends HTMLElement {
       last.icon = state.icon;
     }
 
-    if (state.iconColor !== last.iconColor) {
-      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') rowEls.iconEl.style.color = state.iconColor;
-      else rowEls.iconEl.style.removeProperty('color');
+    if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
+      if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        this._containerEl.style.setProperty('--icon-color', state.iconColor);
+      } else {
+        this._containerEl.style.removeProperty('--icon-color');
+      }
+      if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
+        this._containerEl.style.setProperty('--icon-color-dark', state.iconColorDark);
+      } else {
+        this._containerEl.style.removeProperty('--icon-color-dark');
+      }
+
       try {
-        const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') ? state.iconColor : window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
+        const desired = window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
       } catch (e) {}
+
       last.iconColor = state.iconColor;
+      last.iconColorDark = state.iconColorDark;
     }
 
     // Label
