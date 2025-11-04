@@ -685,11 +685,11 @@ class SimpleBarCard extends HTMLElement {
 
     // Update icon if changed
     if (state.icon !== last.icon) {
-      if (state.icon) {
-        this._iconEl.setAttribute('icon', state.icon);
-      } else {
-        this._iconEl.removeAttribute('icon');
-      }
+      this._iconEl.icon = state.icon;
+      try {
+        const desired = window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
+      } catch (e) {}
       last.icon = state.icon;
     }
 
