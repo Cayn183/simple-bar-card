@@ -773,12 +773,13 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Set CSS variable on container so media-query can override it in dark mode
+      // Only set per-entity icon color if explicitly provided
+      // Otherwise, the global --icon-color from setConfig remains active
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         this._containerEl.style.setProperty('--icon-color', state.iconColor);
-      } else {
-        this._containerEl.style.removeProperty('--icon-color');
       }
+      // Note: Don't remove --icon-color if state.iconColor is undefined!
+      // undefined means "use global config", not "remove color"
       
       // Apply SVG fill based on computed color (after CSS variable is set)
       try {
@@ -885,12 +886,13 @@ class SimpleBarCard extends HTMLElement {
     }
 
     if (state.iconColor !== last.iconColor) {
-      // Set CSS variable on row root so media-query can override it in dark mode
+      // Only set per-entity icon color if explicitly provided
+      // Otherwise, the global --icon-color from setConfig remains active
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         rowEls.root.style.setProperty('--icon-color', state.iconColor);
-      } else {
-        rowEls.root.style.removeProperty('--icon-color');
       }
+      // Note: Don't remove --icon-color if state.iconColor is undefined!
+      // undefined means "use global config", not "remove color"
       
       // Apply SVG fill based on computed color (after CSS variable is set)
       try {
