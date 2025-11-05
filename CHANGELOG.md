@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. Entries are listed in reverse chronological order.
 
+## [v0.2.1-beta] - 2025-11-05
+
+Summary
+- Beta release containing important bug fixes and robustness improvements for icon coloring and icon backgrounds. Resolves cases where `icon_color_dark` and `icon_background_color_dark` were not applied correctly in dark mode. Adds enhanced debug output to facilitate troubleshooting in the browser DevTools.
+
+Highlights
+- Fixed: Reliable switching between `icon_color` and `icon_color_dark`
+	- Removed inline style overrides that prevented media-query based theme switching.
+	- Now reads CSS variables (`--icon-color`, `--icon-color-dark`) and selects the appropriate value based on the system/browser theme (`prefers-color-scheme`). Falls back to computed colors when variables are not set.
+- Fixed: Icon-circle background now supports `icon_background_color` and `icon_background_color_dark`
+	- Uses the same selection logic as icon colors and removes inline background overrides when no value is provided.
+- Improved: More robust SVG handling
+	- Applies `fill` on the `svg` element and all child nodes to cover different icon implementations and Shadow DOM structures.
+- Performance and render-safety
+	- Color updates remain batched with `requestAnimationFrame` to avoid layout jank; a centralized update flow synchronizes Shadow DOM access and color application.
+- Debugging
+	- Additional console logs (visible via F12) report which CSS variables are set, which color variant was chosen (light/dark), and how many SVG nodes were recolored. These logs are intended to help troubleshoot icon variations across Home Assistant versions and icon sets.
+
+Notes
+- Changes are contained in `simple-bar-card.js`. The component remains a single-file Web Component; no build step is required.
+- Debug logs are currently enabled for verification and can be moved behind a `debug` configuration flag or removed once validated.
+
 ## [v0.2.0-beta] - 2025-11-02
 
 Summary
