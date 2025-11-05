@@ -59,11 +59,22 @@ class SimpleBarCard extends HTMLElement {
 
   _updateAllIconColors() {
     // Force update of SVG colors for all icon elements when theme changes
-    if (!this._iconEl) return;
     try {
       requestAnimationFrame(() => {
-        const desired = window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
+        // Update single-card icon (if exists)
+        if (this._iconEl) {
+          const desired = window.getComputedStyle(this._iconEl).color;
+          this._applyInnerSvgColor(this._iconEl, desired);
+        }
+        // Update all multi-entity row icons
+        if (this._rowEls) {
+          for (const rowEl of this._rowEls) {
+            if (rowEl.iconEl) {
+              const desired = window.getComputedStyle(rowEl.iconEl).color;
+              this._applyInnerSvgColor(rowEl.iconEl, desired);
+            }
+          }
+        }
       });
     } catch (e) {}
   }
@@ -603,6 +614,9 @@ class SimpleBarCard extends HTMLElement {
         this._scheduleRowUpdate(i, newState);
       }
     }
+    // After rendering all entities, ensure icon colors are applied
+    // This is crucial for the first render and after config changes
+    this._updateAllIconColors();
   }
 
   /***************************
@@ -746,13 +760,6 @@ class SimpleBarCard extends HTMLElement {
     }
     // store rawValue
     last.rawValue = state.rawValue;
-    // Always force SVG fill to match computed color after every update (covers theme changes)
-    try {
-      const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
-        ? state.iconColor
-        : window.getComputedStyle(this._iconEl).color;
-      this._applyInnerSvgColor(this._iconEl, desired);
-    } catch (e) {}
   }
 
   // Apply state to a specific row index using the cached row elements
@@ -783,6 +790,8 @@ class SimpleBarCard extends HTMLElement {
       if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
       else rowEls.iconEl.removeAttribute('icon');
       last.icon = state.icon;
+      // Update SVG color when icon changes
+      this._updateAllIconColors();
     }
     // apply per-row icon color via CSS variables (row-root)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
@@ -796,12 +805,10 @@ class SimpleBarCard extends HTMLElement {
       } else {
         rowEls.root.style.removeProperty('--icon-color-dark');
       }
-      try {
-        const desired = window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
-      } catch (e) {}
       last.iconColor = state.iconColor;
       last.iconColorDark = state.iconColorDark;
+      // Update SVG color when per-entity colors change
+      this._updateAllIconColors();
     }
     // Label
     if (state.displayName !== last.displayName) {
