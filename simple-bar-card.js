@@ -449,6 +449,35 @@ class SimpleBarCard extends HTMLElement {
   _shouldLog(level) {
     return (this._debugLevel || 0) >= level;
   }
+  // Info logging with dedupe + throttle
+  // key: logical key string to dedupe/throttle by
+  // payload: object or string
+  // throttleMs: minimum interval between emitted logs for the same key
+  _lastLogPayload = {}; // key -> string
+  _lastLogTime = {}; // key -> timestamp
+  _logInfo(key, payload, throttleMs = 1000) {
+    try {
+      if (!this._shouldLog(3)) return; // info-level disabled
+      const now = Date.now();
+      const payloadStr = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+      const lastPayload = this._lastLogPayload[key];
+      const lastTime = this._lastLogTime[key] || 0;
+      // If payload identical to last emitted payload, skip
+      if (lastPayload === payloadStr) return;
+      // If within throttle window, update stored payload but don't emit
+      if (now - lastTime < throttleMs) {
+        this._lastLogPayload[key] = payloadStr;
+        return;
+      }
+      // Emit and store
+      console.log('[SimpleBarCard]', key, payload);
+      this._lastLogPayload[key] = payloadStr;
+      this._lastLogTime[key] = now;
+    } catch (e) {
+      // fallback to verbose log on error
+      if (this._shouldLog(4)) console.log('[SimpleBarCard] _logInfo error', e);
+    }
+  }
   _debugLog(...args) {
     if (this._shouldLog(3)) console.log('[SimpleBarCard]', ...args);
   }
@@ -597,7 +626,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // Debug: summarize parsed entities
     try {
-      this._debugLog('setConfig: parsed entities:', this._entities.map(e => e.entity));
+      this._logInfo('setConfig.entities', this._entities.map(e => e.entity));
       // show which per-entity overrides exist (only short keys to avoid clutter)
       this._debugVerbose('setConfig: per-entity overrides:', this._entities.map(e => ({
         entity: e.entity,
@@ -686,7 +715,7 @@ class SimpleBarCard extends HTMLElement {
       }
       const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
       const iconColorDark = (per.icon_color_dark !== undefined) ? per.icon_color_dark : undefined;
-  this._debugLog(`Entity ${i} (${per.entity}): icon_color=${iconColor}, icon_color_dark=${iconColorDark}`);
+  this._logInfo(`entity.${i}.icon_colors`, { entity: per.entity, icon_color: iconColor, icon_color_dark: iconColorDark });
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -794,7 +823,7 @@ class SimpleBarCard extends HTMLElement {
     const last = this._lastState;
     // Mode change handling
     if (state.modeBipolar !== last.modeBipolar) {
-      this._debugLog('_applyState: mode change', { from: last.modeBipolar, to: state.modeBipolar });
+  this._logInfo('mode.change', { from: last.modeBipolar, to: state.modeBipolar });
       // Show/hide elements appropriately
       if (state.modeBipolar) {
         // ensure bipolar elements visible
@@ -817,7 +846,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // Update icon if changed
     if (state.icon !== last.icon) {
-      this._debugLog('_applyState: icon changed for single-card from', last.icon, 'to', state.icon);
+  this._logInfo('icon.change.single', { from: last.icon, to: state.icon });
       if (state.icon) {
         this._iconEl.setAttribute('icon', state.icon);
       } else {
@@ -896,7 +925,7 @@ class SimpleBarCard extends HTMLElement {
     const last = this._lastStateRows[index] || {};
     // Mode switch
     if (state.modeBipolar !== last.modeBipolar) {
-      this._debugLog(`_applyStateRow[${index}]: mode change`, { from: last.modeBipolar, to: state.modeBipolar });
+  this._logInfo(`row.${index}.mode_change`, { from: last.modeBipolar, to: state.modeBipolar });
       if (state.modeBipolar) {
         rowEls.barFillEl.style.display = 'none';
         rowEls.barFillNegEl.style.display = '';
@@ -915,7 +944,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // Icon
     if (state.icon !== last.icon) {
-      this._debugLog(`_applyStateRow[${index}]: icon changed`, { from: last.icon, to: state.icon });
+  this._logInfo(`row.${index}.icon_change`, { from: last.icon, to: state.icon });
       if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
       else rowEls.iconEl.removeAttribute('icon');
       last.icon = state.icon;
@@ -924,7 +953,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // apply per-row icon color via CSS variables (row-root)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
-      this._debugLog(`Row ${index}: Per-entity colors changed:`, state.iconColor, state.iconColorDark);
+      this._logInfo(`row.${index}.icon_colors`, { iconColor: state.iconColor, iconColorDark: state.iconColorDark });
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
         this._debugLog(`Row ${index}: Setting --icon-color =`, state.iconColor);
         rowEls.root.style.setProperty('--icon-color', state.iconColor);
@@ -1011,12 +1040,12 @@ class SimpleBarCard extends HTMLElement {
     }
     for (const threshold of thresholds) {
       if (value <= threshold.value) {
-        this._debugLog('_getColorForValue: value', value, 'matched threshold', threshold.value, '->', threshold.color);
+        this._logInfo('threshold.match', { value, matched: threshold.value, color: threshold.color });
         return threshold.color;
       }
     }
     const lastColor = thresholds[thresholds.length - 1].color;
-    this._debugLog('_getColorForValue: value', value, 'greater than all thresholds; using last color ->', lastColor);
+    this._logInfo('threshold.match', { value, matched: 'last', color: lastColor });
     return lastColor;
   }
 
