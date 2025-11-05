@@ -413,6 +413,7 @@ class SimpleBarCard extends HTMLElement {
         // clone the inner structure from the first row if empty
         const first = rows[0];
         row.innerHTML = first.innerHTML;
+        this._debugLog('_buildSkeleton: cloned template into empty row index', i);
       }
       const r = {
         root: row,
@@ -528,6 +529,7 @@ class SimpleBarCard extends HTMLElement {
       for (const k of keys) {
         if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
           setIf(cssVar, this._config[k]);
+          this._debugLog('setConfig: used alias', k, 'for', cssVar);
           break;
         }
       }
@@ -551,6 +553,7 @@ class SimpleBarCard extends HTMLElement {
       for (const k of keys) {
         if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
           setIf(cssVar, this._config[k]);
+          this._debugLog('setConfig: used dark alias', k, 'for', cssVar);
           break;
         }
       }
@@ -592,6 +595,17 @@ class SimpleBarCard extends HTMLElement {
     if (this._entities.length > 5) {
       throw new Error('Maximal 5 entities sind erlaubt');
     }
+    // Debug: summarize parsed entities
+    try {
+      this._debugLog('setConfig: parsed entities:', this._entities.map(e => e.entity));
+      // show which per-entity overrides exist (only short keys to avoid clutter)
+      this._debugVerbose('setConfig: per-entity overrides:', this._entities.map(e => ({
+        entity: e.entity,
+        icon_color: !!e.icon_color,
+        icon_color_dark: !!e.icon_color_dark,
+        bar_fill_color: !!e.bar_fill_color
+      })));
+    } catch (e) {}
     // Show/hide row elements according to number of entities configured
     if (this._rowEls && this._rowEls.length) {
       for (let i = 0; i < this._rowEls.length; i++) {
@@ -650,11 +664,13 @@ class SimpleBarCard extends HTMLElement {
       const per = this._entities[i];
       const stateObj = this._hass.states[per.entity];
       if (!stateObj) {
+        this._debugWarn('_render: Entity not found:', per.entity);
         this._renderError(`Entity nicht gefunden: ${per.entity}`);
         return;
       }
       const rawValue = Number(stateObj.state);
       if (isNaN(rawValue)) {
+        this._debugWarn('_render: Invalid numeric value for', per.entity, 'state=', stateObj.state);
         this._renderError(`Ungültiger Wert: ${stateObj.state}`);
         return;
       }
@@ -732,6 +748,7 @@ class SimpleBarCard extends HTMLElement {
   _scheduleStateUpdate(state) {
     // Merge into pendingState
     this._pendingState = Object.assign({}, this._pendingState || {}, state);
+    this._debugVerbose('_scheduleStateUpdate: pendingState keys', Object.keys(this._pendingState || {}));
     if (this._updateScheduled) return;
     this._updateScheduled = true;
     requestAnimationFrame(() => {
@@ -744,6 +761,7 @@ class SimpleBarCard extends HTMLElement {
   // Schedule a single row update (batched via rAF)
   _scheduleRowUpdate(index, state) {
     this._pendingRowStates[index] = Object.assign({}, this._pendingRowStates[index] || {}, state);
+    this._debugVerbose('_scheduleRowUpdate: pendingRowStates keys', Object.keys(this._pendingRowStates || {}));
     if (this._rowUpdateScheduled) return;
     this._rowUpdateScheduled = true;
     requestAnimationFrame(() => {
@@ -776,6 +794,7 @@ class SimpleBarCard extends HTMLElement {
     const last = this._lastState;
     // Mode change handling
     if (state.modeBipolar !== last.modeBipolar) {
+      this._debugLog('_applyState: mode change', { from: last.modeBipolar, to: state.modeBipolar });
       // Show/hide elements appropriately
       if (state.modeBipolar) {
         // ensure bipolar elements visible
@@ -798,6 +817,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // Update icon if changed
     if (state.icon !== last.icon) {
+      this._debugLog('_applyState: icon changed for single-card from', last.icon, 'to', state.icon);
       if (state.icon) {
         this._iconEl.setAttribute('icon', state.icon);
       } else {
@@ -876,6 +896,7 @@ class SimpleBarCard extends HTMLElement {
     const last = this._lastStateRows[index] || {};
     // Mode switch
     if (state.modeBipolar !== last.modeBipolar) {
+      this._debugLog(`_applyStateRow[${index}]: mode change`, { from: last.modeBipolar, to: state.modeBipolar });
       if (state.modeBipolar) {
         rowEls.barFillEl.style.display = 'none';
         rowEls.barFillNegEl.style.display = '';
@@ -894,6 +915,7 @@ class SimpleBarCard extends HTMLElement {
     }
     // Icon
     if (state.icon !== last.icon) {
+      this._debugLog(`_applyStateRow[${index}]: icon changed`, { from: last.icon, to: state.icon });
       if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
       else rowEls.iconEl.removeAttribute('icon');
       last.icon = state.icon;
@@ -989,10 +1011,13 @@ class SimpleBarCard extends HTMLElement {
     }
     for (const threshold of thresholds) {
       if (value <= threshold.value) {
+        this._debugLog('_getColorForValue: value', value, 'matched threshold', threshold.value, '->', threshold.color);
         return threshold.color;
       }
     }
-    return thresholds[thresholds.length - 1].color;
+    const lastColor = thresholds[thresholds.length - 1].color;
+    this._debugLog('_getColorForValue: value', value, 'greater than all thresholds; using last color ->', lastColor);
+    return lastColor;
   }
 
   // Try to find the inner SVG inside ha-icon / ha-svg-icon shadow roots and set
@@ -1006,13 +1031,26 @@ class SimpleBarCard extends HTMLElement {
     }
     try {
       this._debugLog('_applyInnerSvgColor called with color:', color);
-      // ha-icon -> shadowRoot -> ha-svg-icon -> shadowRoot -> svg
-      const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
-      this._debugLog('haSvg found:', !!haSvg);
-      const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
-      this._debugLog('svg found:', !!svg);
+      // Try several lookup strategies and log more granular warnings
+      if (!iconEl.shadowRoot) {
+        this._debugWarn('Icon element has no shadowRoot — cannot inspect inner SVG');
+        return;
+      }
+      // Prefer ha-svg-icon path
+      let haSvg = iconEl.shadowRoot.querySelector('ha-svg-icon');
+      if (haSvg) this._debugVerbose('haSvg found inside icon shadowRoot');
+      let svg = null;
+      if (haSvg && haSvg.shadowRoot) {
+        svg = haSvg.shadowRoot.querySelector('svg');
+        if (svg) this._debugVerbose('svg found inside ha-svg-icon shadowRoot');
+      }
+      // Fallback: look for a direct svg inside the icon's shadowRoot
       if (!svg) {
-        this._debugWarn('SVG not found in shadow DOM');
+        svg = iconEl.shadowRoot.querySelector('svg');
+        if (svg) this._debugVerbose('svg found directly inside icon shadowRoot (fallback)');
+      }
+      if (!svg) {
+        this._debugWarn('SVG not found in shadow DOM (ha-svg-icon missing or no svg element)');
         return;
       }
       // Compute a concrete color value if needed
