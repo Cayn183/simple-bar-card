@@ -132,7 +132,7 @@ class SimpleBarCard extends HTMLElement {
             line-height: 0;      /* entfernt baseline/Zeilenhöhen-Verschiebung */
             padding: 0;
             /* Prefer explicit CSS variable, otherwise use Home Assistant theme icon color */
-            color: var(--icon-color, var(--paper-item-icon-color, inherit));
+            color: var(--icon-color, var(--paper-item-icon-color, currentColor));
           }
         /* Wenn ha-icon ::part(svg) unterstützt, sicherstellen, dass das SVG auch block ist */
         .ha-icon.bar-icon::part(svg) {
@@ -282,7 +282,7 @@ class SimpleBarCard extends HTMLElement {
           }
           .ha-icon.bar-icon {
             /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
-            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
+            color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, currentColor)));
           }
         }
       </style>
