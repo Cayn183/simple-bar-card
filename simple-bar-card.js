@@ -82,16 +82,28 @@ class SimpleBarCard extends HTMLElement {
         // Update all multi-entity row icons
         if (this._rowEls) {
           console.log('[SimpleBarCard] Updating', this._rowEls.length, 'row icons');
+          const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          console.log('[SimpleBarCard] isDarkMode:', isDarkMode);
           for (let i = 0; i < this._rowEls.length; i++) {
             const rowEl = this._rowEls[i];
             if (rowEl.iconEl) {
               const computed = window.getComputedStyle(rowEl.iconEl);
-              const desired = computed.color;
-              console.log(`[SimpleBarCard] Row ${i} icon computed color:`, desired);
-              console.log(`[SimpleBarCard] Row ${i} icon CSS variables:`, {
-                iconColor: computed.getPropertyValue('--icon-color'),
-                iconColorDark: computed.getPropertyValue('--icon-color-dark')
-              });
+              // Read CSS variables directly
+              let iconColorVar = computed.getPropertyValue('--icon-color').trim();
+              let iconColorDarkVar = computed.getPropertyValue('--icon-color-dark').trim();
+              console.log(`[SimpleBarCard] Row ${i} CSS vars:`, {iconColorVar, iconColorDarkVar, isDarkMode});
+              
+              // Choose the appropriate color based on dark mode
+              let desired = isDarkMode && iconColorDarkVar ? iconColorDarkVar : iconColorVar;
+              
+              // If no CSS variable is set, fall back to computed color
+              if (!desired) {
+                desired = computed.color;
+                console.log(`[SimpleBarCard] Row ${i} falling back to computed color:`, desired);
+              } else {
+                console.log(`[SimpleBarCard] Row ${i} using CSS variable color:`, desired);
+              }
+              
               this._applyInnerSvgColor(rowEl.iconEl, desired);
             }
           }
@@ -940,9 +952,11 @@ class SimpleBarCard extends HTMLElement {
         console.warn('[SimpleBarCard] No fillVal to apply');
         return;
       }
-      // Set fill on path elements (safe and effective)
-      const paths = svg.querySelectorAll('path, circle, rect, polygon');
+      // Set fill on ALL child elements of the SVG
+      const paths = svg.querySelectorAll('*');
       console.log('[SimpleBarCard] Found', paths.length, 'SVG elements to color');
+      // Also set fill directly on the SVG itself
+      svg.setAttribute('fill', fillVal);
       paths.forEach((p, idx) => {
         try { 
           p.setAttribute('fill', fillVal);
