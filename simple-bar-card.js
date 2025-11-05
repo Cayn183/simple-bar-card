@@ -1,10 +1,8 @@
 class SimpleBarCard extends HTMLElement {
   constructor() {
     super();
-
     // Shadow root
     this.attachShadow({ mode: 'open' });
-
     // Cached DOM references (werden in _build once gesetzt)
     this._containerEl = null;
     this._labelEl = null;
@@ -16,7 +14,6 @@ class SimpleBarCard extends HTMLElement {
     this._valueEl = null;
     this._iconEl = null;
     this._iconCircleEl = null;
-
     // Last known state for change detection
     this._lastState = {
       rawValue: undefined,
@@ -28,13 +25,12 @@ class SimpleBarCard extends HTMLElement {
       displayName: undefined,
       formattedValueWithUnit: undefined,
       icon: undefined,
-      iconColor: undefined
+      iconColor: undefined,
+      iconColorDark: undefined
     };
-
     // rAF batching
     this._updateScheduled = false;
     this._pendingState = null;
-
     // Build skeleton once
     this._buildSkeleton();
   }
@@ -59,20 +55,17 @@ class SimpleBarCard extends HTMLElement {
           border-radius: var(--card-border-radius, 12px);
           display: block;
         }
-
         /* Entities wrapper: stack multiple entity rows vertically */
         .entities {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
-
         /* Each entity row keeps the original horizontal layout: icon | main | value */
         .entity-row {
           display: flex;
           align-items: center;
         }
-
         /* Optional heading above the entities */
         .heading {
           font-weight: 700;
@@ -80,7 +73,6 @@ class SimpleBarCard extends HTMLElement {
           margin-bottom: 6px;
           color: var(--label-color, var(--primary-text-color, inherit));
         }
-
         /* Icon area */
         .icon-container {
           width: 50px;
@@ -117,7 +109,6 @@ class SimpleBarCard extends HTMLElement {
           /* Ensure the SVG paths use the element's color (currentColor) so theme colors apply */
           fill: currentColor;
         }
-
         /* Main area: label + bar */
         .main-container {
           flex-grow: 1;
@@ -133,7 +124,6 @@ class SimpleBarCard extends HTMLElement {
           font-size: 13px;
           transform: translateX(8px);
         }
-
         /* Standard bar background (holds fills) */
         .bar-row {
           display: flex;
@@ -148,7 +138,6 @@ class SimpleBarCard extends HTMLElement {
           overflow: hidden;
           margin-right: 12px;
         }
-
         /* STANDARD fill (uses transform scaleX for performance) */
         .bar-fill {
           position: absolute;
@@ -163,7 +152,6 @@ class SimpleBarCard extends HTMLElement {
           transition: transform 300ms ease;
           will-change: transform;
         }
-
         /* BIPOLAR fills: each covers half width; scaled via transform */
         .bar-fill-negative,
         .bar-fill-positive {
@@ -185,7 +173,6 @@ class SimpleBarCard extends HTMLElement {
           transform-origin: left;
           border-radius: 0 6px 6px 0; /* rounded toward center */
         }
-
         /* Zero line for bipolar */
         .zero-line {
           position: absolute;
@@ -197,7 +184,6 @@ class SimpleBarCard extends HTMLElement {
           transform: translateX(-50%);
           z-index: 2;
         }
-
         /* Value area */
         .value-container {
           width: 60px;
@@ -244,29 +230,23 @@ class SimpleBarCard extends HTMLElement {
             background-color: var(--card-background-dark, var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, rgba(40,40,40,1)))));
             border: 1px solid var(--card-border-color-dark, var(--card-border-color, var(--ha-card-border-color, var(--divider-color, #444))));
           }
-
           .bar-background {
             background-color: var(--bar-background-color-dark, var(--bar-background-color, rgba(255,255,255,0.06)));
           }
-
           .bar-fill,
           .bar-fill-negative,
           .bar-fill-positive {
             background-color: var(--bar-fill-color-dark, var(--bar-fill-color, var(--primary-color, #3b82f6)));
           }
-
           .icon-circle {
             background-color: var(--icon-bg-color-dark, var(--icon-bg-color, transparent));
           }
-
           .label {
             color: var(--label-color-dark, var(--label-color, var(--primary-text-color, inherit)));
           }
-
           .value {
             color: var(--value-color-dark, var(--value-color, var(--secondary-text-color, inherit)));
           }
-
           .ha-icon.bar-icon {
             /* Prefer explicit dark-mode variable, otherwise fall back to theme icon color */
             color: var(--icon-color-dark, var(--icon-color, var(--paper-item-icon-color, inherit)));
@@ -301,11 +281,9 @@ class SimpleBarCard extends HTMLElement {
                 <div class="bar-background">
                   <!-- standard fill (scaled via transform) -->
                   <div class="bar-fill"></div>
-
                   <!-- bipolar fills (each covers half, scaled via transform) -->
                   <div class="bar-fill-negative" style="transform: scaleX(0)"></div>
                   <div class="bar-fill-positive" style="transform: scaleX(0)"></div>
-
                   <!-- zero line (shown only in bipolar mode) -->
                   <div class="zero-line" style="display:none"></div>
                 </div>
@@ -322,11 +300,9 @@ class SimpleBarCard extends HTMLElement {
     `;
     // Append once
     this.shadowRoot.appendChild(template.content.cloneNode(true));
-
     // Cache refs
     this._containerEl = this.shadowRoot.querySelector('.container');
-  this._headingEl = this.shadowRoot.querySelector('.heading');
-
+    this._headingEl = this.shadowRoot.querySelector('.heading');
     // Per-row cached refs (support up to 5 rows)
     this._rowEls = [];
     const rows = this.shadowRoot.querySelectorAll('.entity-row');
@@ -351,9 +327,8 @@ class SimpleBarCard extends HTMLElement {
       };
       this._rowEls.push(r);
     }
-
-    // Initialize last state per row
-    this._lastStateRows = Array.from({ length: this._rowEls.length }, () => ({}));
+    // Initialize last state per row with iconColorDark tracking
+    this._lastStateRows = Array.from({ length: this._rowEls.length }, () => ({ iconColor: undefined, iconColorDark: undefined }));
     // Pending row updates storage
     this._pendingRowStates = {};
     this._rowUpdateScheduled = false;
@@ -370,20 +345,16 @@ class SimpleBarCard extends HTMLElement {
       min: 0,
       max: 100,
       bipolar: false,
-  // `icon_show` controls whether the icon column is visible. Default: true.
-  icon_show: true,
-  // `value_show` controls whether the numeric value column is visible. Default: true.
-  value_show: true,
-  // Optional heading above entities
-  heading_show: false,
-  heading: undefined,
+      // `icon_show` controls whether the icon column is visible. Default: true.
+      icon_show: true,
+      // `value_show` controls whether the numeric value column is visible. Default: true.
+      value_show: true,
+      // Optional heading above entities
+      heading_show: false,
+      heading: undefined,
       ...config
     };
-
-  // Apply only explicitly provided config-controlled CSS variables.
-  // Preserve Home Assistant themes when no custom color is given.
-  // Use aliases and set variables on the host and on the container (if present)
-  // to ensure host-level and media-query-scoped styles see them reliably.
+    // Apply only explicitly provided config-controlled CSS variables.
     const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
         try {
@@ -392,10 +363,6 @@ class SimpleBarCard extends HTMLElement {
         if (this._containerEl) this._containerEl.style.setProperty(prop, val);
       }
     };
-
-    // Normalize configuration keys using a canonical naming scheme and many aliases
-    // This keeps setConfig concise and makes it easy to add new canonical keys later.
-
     const aliasMap = {
       '--card-background-color': ['card_background_color', 'card_background'],
       '--card-border-color': ['card_border_color', 'card_border'],
@@ -407,7 +374,6 @@ class SimpleBarCard extends HTMLElement {
       '--bar-fill-color': ['bar_fill_color', 'bar_fill_color_hex', 'barFillColor'],
       '--icon-color': ['icon_color', 'iconColor']
     };
-
     for (const [cssVar, keys] of Object.entries(aliasMap)) {
       for (const k of keys) {
         if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
@@ -416,12 +382,10 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     }
-
     // value font weight still allowed via config boolean
     const valueWeight = this._config.value_bold ? '700' : '400';
     this.style.setProperty('--value-font-weight', valueWeight);
     if (this._containerEl) this._containerEl.style.setProperty('--value-font-weight', valueWeight);
-
     // Dark-mode alias map (per-property dark variants)
     const darkAliasMap = {
       '--card-background-dark': ['card_background_color_dark', 'card_background_dark', 'cardBackgroundDark'],
@@ -433,7 +397,6 @@ class SimpleBarCard extends HTMLElement {
       '--bar-fill-color-dark': ['bar_fill_color_dark', 'bar_fill_dark', 'barFillColorDark'],
       '--icon-color-dark': ['icon_color_dark', 'iconColorDark']
     };
-
     for (const [cssVar, keys] of Object.entries(darkAliasMap)) {
       for (const k of keys) {
         if (k in this._config && this._config[k] !== undefined && this._config[k] !== null && this._config[k] !== '') {
@@ -442,7 +405,6 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     }
-
     // Parse up to 5 entities. Support two styles:
     // - config.entities: array of strings or objects
     // - config.entity, config.entity_2, config.entity_3, ...
@@ -457,19 +419,14 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     } else {
-      // gather entity, entity_2 .. entity_5
       for (let i = 1; i <= 5; i++) {
         const key = i === 1 ? 'entity' : `entity_${i}`;
         if (key in this._config && this._config[key]) {
-          // build per-entity config by taking base and applying suffixed overrides
           const per = Object.assign({}, this._config);
-          // apply overrides like min_2 => per.min
           for (const k of Object.keys(this._config)) {
             const suffix = `_${i}`;
             if (k.endsWith(suffix)) {
               const baseKey = k.slice(0, -suffix.length);
-              // Do not allow per-entity visibility toggles via suffixed keys.
-              // icon_show and value_show are global toggles applied to all rows.
               if (baseKey === 'icon_show' || baseKey === 'value_show') continue;
               per[baseKey] = this._config[k];
             }
@@ -479,15 +436,12 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     }
-
     if (this._entities.length === 0) {
       throw new Error('Mindestens eine Entity muss angegeben werden');
     }
-
     if (this._entities.length > 5) {
       throw new Error('Maximal 5 entities sind erlaubt');
     }
-
     // Show/hide row elements according to number of entities configured
     if (this._rowEls && this._rowEls.length) {
       for (let i = 0; i < this._rowEls.length; i++) {
@@ -499,7 +453,6 @@ class SimpleBarCard extends HTMLElement {
         }
       }
     }
-
     // Heading display
     if (this._headingEl) {
       if (this._config.heading_show) {
@@ -509,26 +462,19 @@ class SimpleBarCard extends HTMLElement {
         this._headingEl.style.display = 'none';
       }
     }
-
-    // Icon visibility: support `icon_show: false` to remove the icon column and
-    // let the bar content shift left. `icon` (string) is used only as the
-    // icon name when present; `icon_show` controls visibility independently.
+    // Icon visibility
     if (this._config.icon_show === false) {
       this.setAttribute('no-icon', '');
     } else {
       this.removeAttribute('no-icon');
     }
-
-    // Value visibility: support `value_show: false` to hide the numeric value
-    // column and let the bar fill the space to the right. Default is true.
+    // Value visibility
     if (this._config.value_show === false) {
       this.setAttribute('no-value', '');
     } else {
       this.removeAttribute('no-value');
     }
-
-    // Remove any per-entity icon_show/value_show flags so visibility is only
-    // controlled globally via this._config.icon_show / this._config.value_show.
+    // Remove per-entity visibility flags
     for (const per of this._entities) {
       if ('icon_show' in per) delete per.icon_show;
       if ('value_show' in per) delete per.value_show;
@@ -557,17 +503,14 @@ class SimpleBarCard extends HTMLElement {
         this._renderError(`Entity nicht gefunden: ${per.entity}`);
         return;
       }
-
       const rawValue = Number(stateObj.state);
       if (isNaN(rawValue)) {
         this._renderError(`Ungültiger Wert: ${stateObj.state}`);
         return;
       }
-
       const displayName = per.name || stateObj.attributes.friendly_name || per.entity;
       const formattedValueWithUnit = this._formatValue(rawValue, stateObj, per);
       const fillColor = this._getColorForValue(rawValue, per) || per.bar_fill_color || '#3b82f6';
-
       // Icon handling per entity. Visibility is global via this._config.icon_show
       let icon;
       if (this._config.icon_show === false) {
@@ -575,9 +518,8 @@ class SimpleBarCard extends HTMLElement {
       } else {
         icon = (per.icon ?? stateObj.attributes.icon) || 'mdi:chart-bar';
       }
-
       const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
-
+      const iconColorDark = (per.icon_color_dark !== undefined) ? per.icon_color_dark : undefined;
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -599,12 +541,32 @@ class SimpleBarCard extends HTMLElement {
           if (clampedValue < 0) negScale = Math.min(Math.abs(clampedValue) / maxAbs, 1);
           else if (clampedValue > 0) posScale = Math.min(clampedValue / maxAbs, 1);
         }
-
-        const newState = { modeBipolar: true, negScale, posScale, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        const newState = {
+          modeBipolar: true,
+          negScale,
+          posScale,
+          fillColor,
+          displayName,
+          formattedValueWithUnit,
+          icon,
+          iconColor,
+          iconColorDark,
+          rawValue
+        };
         this._scheduleRowUpdate(i, newState);
       } else {
         const percent = this._calculatePercentWithConfig(rawValue, per) / 100;
-        const newState = { modeBipolar: false, percent, fillColor, displayName, formattedValueWithUnit, icon, iconColor, rawValue };
+        const newState = {
+          modeBipolar: false,
+          percent,
+          fillColor,
+          displayName,
+          formattedValueWithUnit,
+          icon,
+          iconColor,
+          iconColorDark,
+          rawValue
+        };
         this._scheduleRowUpdate(i, newState);
       }
     }
@@ -616,9 +578,7 @@ class SimpleBarCard extends HTMLElement {
   _scheduleStateUpdate(state) {
     // Merge into pendingState
     this._pendingState = Object.assign({}, this._pendingState || {}, state);
-
     if (this._updateScheduled) return;
-
     this._updateScheduled = true;
     requestAnimationFrame(() => {
       this._updateScheduled = false;
@@ -627,7 +587,6 @@ class SimpleBarCard extends HTMLElement {
       this._applyState(next);
     });
   }
-
   // Schedule a single row update (batched via rAF)
   _scheduleRowUpdate(index, state) {
     this._pendingRowStates[index] = Object.assign({}, this._pendingRowStates[index] || {}, state);
@@ -659,10 +618,8 @@ class SimpleBarCard extends HTMLElement {
       this._applyStateRow(0, state);
       return;
     }
-
     // Short-circuit if nothing changed (compare relevant fields)
     const last = this._lastState;
-
     // Mode change handling
     if (state.modeBipolar !== last.modeBipolar) {
       // Show/hide elements appropriately
@@ -685,7 +642,6 @@ class SimpleBarCard extends HTMLElement {
       }
       last.modeBipolar = state.modeBipolar;
     }
-
     // Update icon if changed
     if (state.icon !== last.icon) {
       if (state.icon) {
@@ -696,29 +652,22 @@ class SimpleBarCard extends HTMLElement {
       last.icon = state.icon;
     }
 
-    // apply per-row icon color via CSS variables (light + dark)
-    // prefer variables on the row root so CSS media query picks dark fallback automatically
+    // apply icon color via container-level CSS variables (single-row)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
-      // set or remove light icon color var
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        rowEls.root.style.setProperty('--icon-color', state.iconColor);
+        this._containerEl.style.setProperty('--icon-color', state.iconColor);
       } else {
-        rowEls.root.style.removeProperty('--icon-color');
+        this._containerEl.style.removeProperty('--icon-color');
       }
-      // set or remove dark icon color var
       if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
-        rowEls.root.style.setProperty('--icon-color-dark', state.iconColorDark);
+        this._containerEl.style.setProperty('--icon-color-dark', state.iconColorDark);
       } else {
-        rowEls.root.style.removeProperty('--icon-color-dark');
+        this._containerEl.style.removeProperty('--icon-color-dark');
       }
-
-      // apply to inner svg paths: compute the currently used color and set fills
       try {
-        // compute style after setting variables -> reflect current (possibly dark) color
-        const desired = window.getComputedStyle(rowEls.iconEl).color;
-        this._applyInnerSvgColor(rowEls.iconEl, desired);
+        const desired = window.getComputedStyle(this._iconEl).color;
+        this._applyInnerSvgColor(this._iconEl, desired);
       } catch (e) {}
-
       last.iconColor = state.iconColor;
       last.iconColorDark = state.iconColorDark;
     }
@@ -728,20 +677,17 @@ class SimpleBarCard extends HTMLElement {
       this._labelEl.textContent = state.displayName;
       last.displayName = state.displayName;
     }
-
     // Update formatted value
     if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
       this._valueEl.textContent = state.formattedValueWithUnit;
       last.formattedValueWithUnit = state.formattedValueWithUnit;
     }
-
     // Update fill color
     if (state.fillColor !== last.fillColor) {
       // Set CSS variable on container for fills to use
       this._containerEl.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
     }
-
     // Update bar transform depending on mode
     if (state.modeBipolar) {
       // negScale / posScale each 0..1
@@ -764,10 +710,8 @@ class SimpleBarCard extends HTMLElement {
       last.negScale = undefined;
       last.posScale = undefined;
     }
-
     // store rawValue
     last.rawValue = state.rawValue;
-
     // Always force SVG fill to match computed color after every update (covers theme changes)
     try {
       const desired = (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '')
@@ -782,7 +726,6 @@ class SimpleBarCard extends HTMLElement {
     if (!state) return;
     const rowEls = this._rowEls[index];
     const last = this._lastStateRows[index] || {};
-
     // Mode switch
     if (state.modeBipolar !== last.modeBipolar) {
       if (state.modeBipolar) {
@@ -801,53 +744,46 @@ class SimpleBarCard extends HTMLElement {
       }
       last.modeBipolar = state.modeBipolar;
     }
-
     // Icon
     if (state.icon !== last.icon) {
       if (state.icon) rowEls.iconEl.setAttribute('icon', state.icon);
       else rowEls.iconEl.removeAttribute('icon');
       last.icon = state.icon;
     }
-
+    // apply per-row icon color via CSS variables (row-root)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        this._containerEl.style.setProperty('--icon-color', state.iconColor);
+        rowEls.root.style.setProperty('--icon-color', state.iconColor);
       } else {
-        this._containerEl.style.removeProperty('--icon-color');
+        rowEls.root.style.removeProperty('--icon-color');
       }
       if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
-        this._containerEl.style.setProperty('--icon-color-dark', state.iconColorDark);
+        rowEls.root.style.setProperty('--icon-color-dark', state.iconColorDark);
       } else {
-        this._containerEl.style.removeProperty('--icon-color-dark');
+        rowEls.root.style.removeProperty('--icon-color-dark');
       }
-
       try {
-        const desired = window.getComputedStyle(this._iconEl).color;
-        this._applyInnerSvgColor(this._iconEl, desired);
+        const desired = window.getComputedStyle(rowEls.iconEl).color;
+        this._applyInnerSvgColor(rowEls.iconEl, desired);
       } catch (e) {}
-
       last.iconColor = state.iconColor;
       last.iconColorDark = state.iconColorDark;
     }
-
     // Label
     if (state.displayName !== last.displayName) {
       rowEls.labelEl.textContent = state.displayName;
       last.displayName = state.displayName;
     }
-
     // Value
     if (state.formattedValueWithUnit !== last.formattedValueWithUnit) {
       rowEls.valueEl.textContent = state.formattedValueWithUnit;
       last.formattedValueWithUnit = state.formattedValueWithUnit;
     }
-
     // Fill color (set on the row root so --bar-fill-color applies)
     if (state.fillColor !== last.fillColor) {
       rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
     }
-
     // Transforms for scales/percent
     if (state.modeBipolar) {
       if (state.negScale !== last.negScale) {
@@ -867,7 +803,6 @@ class SimpleBarCard extends HTMLElement {
       last.negScale = undefined;
       last.posScale = undefined;
     }
-
     last.rawValue = state.rawValue;
     this._lastStateRows[index] = last;
   }
@@ -918,11 +853,9 @@ class SimpleBarCard extends HTMLElement {
       const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
       const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
       if (!svg) return;
-
       // Compute a concrete color value if needed
       const fillVal = color || window.getComputedStyle(iconEl).color || null;
       if (!fillVal) return;
-
       // Set fill on path elements (safe and effective)
       const paths = svg.querySelectorAll('path, circle, rect, polygon');
       paths.forEach(p => {
@@ -947,5 +880,4 @@ class SimpleBarCard extends HTMLElement {
     return 1;
   }
 }
-
 customElements.define('simple-bar-card', SimpleBarCard);
