@@ -39,6 +39,8 @@ class SimpleBarCard extends HTMLElement {
     this._debugLevel = 0;
   // Info/warn dedupe throttle (ms) - adjustable via config.debug_throttle_ms
   this._debugThrottleMs = 1000;
+    // Pulse timers per-row (for threshold-change pulse animations)
+    this._pulseTimers = {};
     // Build skeleton once
     this._buildSkeleton();
   }
@@ -146,6 +148,9 @@ class SimpleBarCard extends HTMLElement {
       <style>
         :host {
           display: block;
+          /* animation defaults (can be overridden via config.animation or CSS vars) */
+          --bar-animation-duration: 300ms;
+          --bar-animation-easing: ease;
         }
         .container {
           font-family: sans-serif;
@@ -252,8 +257,17 @@ class SimpleBarCard extends HTMLElement {
           transform: scaleX(0);
           background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
           border-radius: 12px 6px 6px 12px;
-          transition: transform 300ms ease;
+          transition: transform var(--bar-animation-duration, 300ms) var(--bar-animation-easing, ease);
           will-change: transform;
+        }
+        /* pulse keyframes for threshold change - opt-in */
+        @keyframes sbc-pulse {
+          0% { transform: scaleX(var(--sbc-pulse-start, 1)); box-shadow: 0 0 0 rgba(0,0,0,0); }
+          50% { transform: scaleX(var(--sbc-pulse-mid, 1.02)); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+          100% { transform: scaleX(var(--sbc-pulse-start, 1)); box-shadow: 0 0 0 rgba(0,0,0,0); }
+        }
+        .bar-fill.pulse {
+          animation: sbc-pulse var(--sbc-pulse-duration, 600ms) var(--bar-animation-easing, ease);
         }
         /* BIPOLAR fills: each covers half width; scaled via transform */
         .bar-fill-negative,
@@ -262,7 +276,7 @@ class SimpleBarCard extends HTMLElement {
           top: 0;
           bottom: 0;
           width: 50%;                /* half width; scaleX(0..1) visualizes amount */
-          transition: transform 300ms ease;
+          transition: transform var(--bar-animation-duration, 300ms) var(--bar-animation-easing, ease);
           will-change: transform;
           background-color: var(--bar-fill-color, var(--primary-color, #3b82f6));
         }
@@ -322,6 +336,17 @@ class SimpleBarCard extends HTMLElement {
         }
         :host([no-value]) .bar-background {
           margin-right: 0;
+        }
+      </style>
+      <style>
+        /* Respect users' reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+          .bar-fill,
+          .bar-fill-negative,
+          .bar-fill-positive {
+            transition: none !important;
+            animation: none !important;
+          }
         }
       </style>
       <style>
@@ -564,6 +589,39 @@ class SimpleBarCard extends HTMLElement {
     if (typeof config.debug_throttle_ms === 'number') {
       this._debugThrottleMs = Math.max(0, Math.floor(config.debug_throttle_ms));
     }
+    // Animation config (optional). Accepts either boolean (enabled) or object { enabled, duration_ms, easing }
+    this._animationConfig = { enabled: true, duration_ms: 300, easing: 'ease' };
+    if ('animation' in config) {
+      const a = config.animation;
+      if (typeof a === 'boolean') {
+        this._animationConfig.enabled = a;
+      } else if (typeof a === 'object' && a !== null) {
+        if (typeof a.enabled === 'boolean') this._animationConfig.enabled = a.enabled;
+        if (typeof a.duration_ms === 'number') this._animationConfig.duration_ms = Math.max(0, Math.floor(a.duration_ms));
+        if (typeof a.easing === 'string') this._animationConfig.easing = a.easing;
+      }
+    }
+    // Pulse/shimmer options (opt-in)
+    // Accepts: animation.pulse: boolean | { enabled, duration_ms }
+    this._animationConfig.pulse = { enabled: false, duration_ms: 600 };
+    if (config.animation && typeof config.animation === 'object' && config.animation.pulse !== undefined) {
+      const p = config.animation.pulse;
+      if (typeof p === 'boolean') this._animationConfig.pulse.enabled = p;
+      else if (typeof p === 'object' && p !== null) {
+        if (typeof p.enabled === 'boolean') this._animationConfig.pulse.enabled = p.enabled;
+        if (typeof p.duration_ms === 'number') this._animationConfig.pulse.duration_ms = Math.max(0, Math.floor(p.duration_ms));
+      }
+    }
+    // Apply animation CSS variables to container (if built)
+    const animDuration = this._animationConfig.enabled ? `${this._animationConfig.duration_ms}ms` : '0ms';
+    try {
+      this.style.setProperty('--bar-animation-duration', animDuration);
+      this.style.setProperty('--bar-animation-easing', this._animationConfig.easing);
+      if (this._containerEl) {
+        this._containerEl.style.setProperty('--bar-animation-duration', animDuration);
+        this._containerEl.style.setProperty('--bar-animation-easing', this._animationConfig.easing);
+      }
+    } catch (e) {}
     // Apply only explicitly provided config-controlled CSS variables.
     const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
@@ -921,8 +979,25 @@ class SimpleBarCard extends HTMLElement {
     // Update fill color
     if (state.fillColor !== last.fillColor) {
       // Set CSS variable on container for fills to use
+      const prevFill = last.fillColor;
       this._containerEl.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
+      // Pulse for single-card fill when threshold changed (opt-in)
+      try {
+        const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!prefersReduced && this._animationConfig && this._animationConfig.pulse && this._animationConfig.pulse.enabled && prevFill && prevFill !== state.fillColor) {
+          const pulseMs = this._animationConfig.pulse.duration_ms || 600;
+          const el = this._barFillEl;
+          if (el) {
+            el.style.setProperty('--sbc-pulse-duration', `${pulseMs}ms`);
+            if (this._pulseTimers['single']) clearTimeout(this._pulseTimers['single']);
+            el.classList.remove('pulse');
+            void el.offsetWidth;
+            el.classList.add('pulse');
+            this._pulseTimers['single'] = setTimeout(() => { try { el.classList.remove('pulse'); } catch (e){}; delete this._pulseTimers['single']; }, pulseMs + 50);
+          }
+        }
+      } catch (e) {}
     }
     // Update bar transform depending on mode
     if (state.modeBipolar) {
@@ -1017,8 +1092,32 @@ class SimpleBarCard extends HTMLElement {
     }
     // Fill color (set on the row root so --bar-fill-color applies)
     if (state.fillColor !== last.fillColor) {
+      const prevFill = last.fillColor;
       rowEls.root.style.setProperty('--bar-fill-color', state.fillColor);
       last.fillColor = state.fillColor;
+      // If pulse on threshold-change is enabled, trigger a brief pulse on the fill
+      try {
+        const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!prefersReduced && this._animationConfig && this._animationConfig.pulse && this._animationConfig.pulse.enabled && prevFill && prevFill !== state.fillColor) {
+          const pulseMs = this._animationConfig.pulse.duration_ms || 600;
+          const el = rowEls.barFillEl;
+          if (el) {
+            // ensure duration var on element
+            el.style.setProperty('--sbc-pulse-duration', `${pulseMs}ms`);
+            // add class and remove after duration; dedupe by clearing previous timer
+            if (this._pulseTimers[index]) clearTimeout(this._pulseTimers[index]);
+            el.classList.remove('pulse');
+            // force reflow to restart animation
+            // eslint-disable-next-line no-unused-expressions
+            void el.offsetWidth;
+            el.classList.add('pulse');
+            this._pulseTimers[index] = setTimeout(() => {
+              try { el.classList.remove('pulse'); } catch (e) {}
+              delete this._pulseTimers[index];
+            }, pulseMs + 50);
+          }
+        }
+      } catch (e) {}
     }
     // Transforms for scales/percent
     if (state.modeBipolar) {
