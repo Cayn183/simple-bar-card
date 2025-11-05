@@ -305,6 +305,7 @@ class SimpleBarCard extends HTMLElement {
           font-weight: var(--value-font-weight, 400); /* normal or bold */
           text-align: center;
           transform: translateY(12px);
+          transform: translateX(-4px);
         }
         /* When the icon area is disabled via config (icon: false), hide the icon
            column and remove the left margin so the main content shifts left. */
