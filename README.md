@@ -123,6 +123,30 @@ If you see a warning or error, fix the YAML and edit/save the Lovelace card — 
 - Icons not matching theme: the card tries to set inner SVG fills when HA components don't inherit `currentColor`. This is best-effort and works for common HA icon implementations.
 - If a value appears invalid, check that the entity's state is numeric. Non-numeric states display an in-card error explaining the invalid value.
 
+## Debugging
+
+The card supports a concise debug level you can enable in the card config to help diagnose icon/color/theme issues. Accepted values:
+
+- `"error"` — show only error context (exceptions always appear).
+- `"warn"`  — warnings and fallbacks (missing SVG, fallbacks to computed color).
+- `"info"`  — lifecycle and high-level actions (recommended for normal debugging).
+- `"verbose"` — very detailed per-element operations (use sparingly).
+
+Enable in YAML:
+
+```yaml
+type: 'custom:simple-bar-card'
+entity: sensor.test
+debug: 'info'        # or 'verbose' / 'warn' / 'error'
+```
+
+Runtime toggle (browser console):
+
+```js
+document.querySelector('simple-bar-card').setDebug('verbose');
+document.querySelector('simple-bar-card').setDebug(false); // turn off
+```
+
 ## Developer quick-test (browser console)
 
 Create and attach the card in a browser with `ha-icon` available:

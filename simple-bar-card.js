@@ -34,6 +34,9 @@ class SimpleBarCard extends HTMLElement {
     // Dark mode media query listener
     this._darkModeQuery = null;
     this._darkModeListener = null;
+    // Debug level (0=off, 1=error, 2=warn, 3=info, 4=verbose)
+    this._debug = false; // kept for backward-compat, prefer _debugLevel
+    this._debugLevel = 0;
     // Build skeleton once
     this._buildSkeleton();
   }
@@ -42,12 +45,12 @@ class SimpleBarCard extends HTMLElement {
    * Lifecycle
    ***************************/
   connectedCallback() {
-    console.log('[SimpleBarCard] connectedCallback: Setting up dark mode listener');
+    this._debugLog('connectedCallback: Setting up dark mode listener');
     // Set up dark mode listener to update SVG colors when theme changes
     this._darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    console.log('[SimpleBarCard] Current dark mode:', this._darkModeQuery.matches);
+    this._debugLog('Current dark mode:', this._darkModeQuery.matches);
     this._darkModeListener = () => {
-      console.log('[SimpleBarCard] Dark mode changed! New value:', this._darkModeQuery.matches);
+      this._debugLog('Dark mode changed! New value:', this._darkModeQuery.matches);
       this._updateAllIconColors();
     };
     this._darkModeQuery.addEventListener('change', this._darkModeListener);
@@ -64,16 +67,16 @@ class SimpleBarCard extends HTMLElement {
 
   _updateAllIconColors() {
     // Force update of SVG colors for all icon elements when theme changes
-    console.log('[SimpleBarCard] _updateAllIconColors called');
+    this._debugLog('_updateAllIconColors called');
     try {
       requestAnimationFrame(() => {
-        console.log('[SimpleBarCard] rAF executing for icon color update');
+        this._debugLog('rAF executing for icon color update');
         // Update single-card icon (if exists)
         if (this._iconEl) {
           const computed = window.getComputedStyle(this._iconEl);
           const desired = computed.color;
-          console.log('[SimpleBarCard] Single-card icon computed color:', desired);
-          console.log('[SimpleBarCard] Single-card icon CSS variables:', {
+          this._debugLog('Single-card icon computed color:', desired);
+          this._debugLog('Single-card icon CSS variables:', {
             iconColor: computed.getPropertyValue('--icon-color'),
             iconColorDark: computed.getPropertyValue('--icon-color-dark')
           });
@@ -81,9 +84,9 @@ class SimpleBarCard extends HTMLElement {
         }
         // Update all multi-entity row icons
         if (this._rowEls) {
-          console.log('[SimpleBarCard] Updating', this._rowEls.length, 'row icons');
+          this._debugLog('Updating', this._rowEls.length, 'row icons');
           const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          console.log('[SimpleBarCard] isDarkMode:', isDarkMode);
+          this._debugLog('isDarkMode:', isDarkMode);
           for (let i = 0; i < this._rowEls.length; i++) {
             const rowEl = this._rowEls[i];
             if (rowEl.iconEl) {
@@ -91,7 +94,7 @@ class SimpleBarCard extends HTMLElement {
               // Read CSS variables directly
               let iconColorVar = computed.getPropertyValue('--icon-color').trim();
               let iconColorDarkVar = computed.getPropertyValue('--icon-color-dark').trim();
-              console.log(`[SimpleBarCard] Row ${i} CSS vars:`, {iconColorVar, iconColorDarkVar, isDarkMode});
+              this._debugLog(`Row ${i} CSS vars:`, {iconColorVar, iconColorDarkVar, isDarkMode});
               
               // Choose the appropriate color based on dark mode
               let desired = isDarkMode && iconColorDarkVar ? iconColorDarkVar : iconColorVar;
@@ -99,9 +102,9 @@ class SimpleBarCard extends HTMLElement {
               // If no CSS variable is set, fall back to computed color
               if (!desired) {
                 desired = computed.color;
-                console.log(`[SimpleBarCard] Row ${i} falling back to computed color:`, desired);
+                this._debugLog(`Row ${i} falling back to computed color:`, desired);
               } else {
-                console.log(`[SimpleBarCard] Row ${i} using CSS variable color:`, desired);
+                this._debugLog(`Row ${i} using CSS variable color:`, desired);
               }
               
               this._applyInnerSvgColor(rowEl.iconEl, desired);
@@ -111,16 +114,16 @@ class SimpleBarCard extends HTMLElement {
                 const circleComputed = window.getComputedStyle(rowEl.iconCircleEl);
                 let iconBgColorVar = circleComputed.getPropertyValue('--icon-bg-color').trim();
                 let iconBgColorDarkVar = circleComputed.getPropertyValue('--icon-bg-color-dark').trim();
-                console.log(`[SimpleBarCard] Row ${i} icon-circle CSS vars:`, {iconBgColorVar, iconBgColorDarkVar, isDarkMode});
+                this._debugLog(`Row ${i} icon-circle CSS vars:`, {iconBgColorVar, iconBgColorDarkVar, isDarkMode});
                 
                 // Choose the appropriate background color based on dark mode
                 let desiredBg = isDarkMode && iconBgColorDarkVar ? iconBgColorDarkVar : iconBgColorVar;
                 
                 if (desiredBg) {
-                  console.log(`[SimpleBarCard] Row ${i} setting icon-circle background:`, desiredBg);
+                  this._debugLog(`Row ${i} setting icon-circle background:`, desiredBg);
                   rowEl.iconCircleEl.style.backgroundColor = desiredBg;
                 } else {
-                  console.log(`[SimpleBarCard] Row ${i} removing icon-circle inline background`);
+                  this._debugLog(`Row ${i} removing icon-circle inline background`);
                   rowEl.iconCircleEl.style.removeProperty('background-color');
                 }
               }
@@ -432,6 +435,42 @@ class SimpleBarCard extends HTMLElement {
     this._rowUpdateScheduled = false;
   }
 
+  // Debug logging helpers with levels: 'error'=1, 'warn'=2, 'info'=3, 'verbose'=4
+  _levelMap(name) {
+    switch((name || '').toString().toLowerCase()) {
+      case 'error': return 1;
+      case 'warn': case 'warning': return 2;
+      case 'info': return 3;
+      case 'verbose': case 'debug': return 4;
+      default: return 0;
+    }
+  }
+  _shouldLog(level) {
+    return (this._debugLevel || 0) >= level;
+  }
+  _debugLog(...args) {
+    if (this._shouldLog(3)) console.log('[SimpleBarCard]', ...args);
+  }
+  _debugWarn(...args) {
+    if (this._shouldLog(2)) console.warn('[SimpleBarCard]', ...args);
+  }
+  _debugVerbose(...args) {
+    if (this._shouldLog(4)) console.log('[SimpleBarCard]', ...args);
+  }
+  // Public API to set debug level at runtime. Accepts boolean, string or numeric level.
+  setDebug(level) {
+    if (typeof level === 'boolean') {
+      this._debugLevel = level ? 3 : 0; // true -> info
+    } else if (typeof level === 'string') {
+      this._debugLevel = this._levelMap(level);
+    } else if (typeof level === 'number') {
+      this._debugLevel = Math.max(0, Math.min(4, Math.floor(level)));
+    }
+    // keep legacy boolean in sync
+    this._debug = this._debugLevel > 0;
+    this._debugLog('Debug level set to', this._debugLevel);
+  }
+
   /***************************
    * Konfigurations-Handler
    ***************************/
@@ -452,10 +491,22 @@ class SimpleBarCard extends HTMLElement {
       heading: undefined,
       ...config
     };
+    // Enable debug logging if requested in config
+    // Accepts: boolean (true -> 'info'), string ('error'|'warn'|'info'|'verbose'), or numeric level 0..4
+    if (config.debug === true) {
+      this._debugLevel = 3;
+    } else if (typeof config.debug === 'string') {
+      this._debugLevel = this._levelMap(config.debug);
+    } else if (typeof config.debug === 'number') {
+      this._debugLevel = Math.max(0, Math.min(4, Math.floor(config.debug)));
+    } else {
+      this._debugLevel = 0;
+    }
+    this._debug = this._debugLevel > 0;
     // Apply only explicitly provided config-controlled CSS variables.
     const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
-        console.log(`[SimpleBarCard] setConfig: Setting ${prop} = ${val}`);
+        this._debugLog('setConfig: Setting', prop, '=', val);
         try {
           this.style.setProperty(prop, val);
         } catch (e) {}
@@ -619,7 +670,7 @@ class SimpleBarCard extends HTMLElement {
       }
       const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
       const iconColorDark = (per.icon_color_dark !== undefined) ? per.icon_color_dark : undefined;
-      console.log(`[SimpleBarCard] Entity ${i} (${per.entity}): icon_color=${iconColor}, icon_color_dark=${iconColorDark}`);
+  this._debugLog(`Entity ${i} (${per.entity}): icon_color=${iconColor}, icon_color_dark=${iconColorDark}`);
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -851,19 +902,19 @@ class SimpleBarCard extends HTMLElement {
     }
     // apply per-row icon color via CSS variables (row-root)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
-      console.log(`[SimpleBarCard] Row ${index}: Per-entity colors changed:`, state.iconColor, state.iconColorDark);
+      this._debugLog(`Row ${index}: Per-entity colors changed:`, state.iconColor, state.iconColorDark);
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
-        console.log(`[SimpleBarCard] Row ${index}: Setting --icon-color =`, state.iconColor);
+        this._debugLog(`Row ${index}: Setting --icon-color =`, state.iconColor);
         rowEls.root.style.setProperty('--icon-color', state.iconColor);
       } else {
-        console.log(`[SimpleBarCard] Row ${index}: Removing --icon-color`);
+        this._debugLog(`Row ${index}: Removing --icon-color`);
         rowEls.root.style.removeProperty('--icon-color');
       }
       if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
-        console.log(`[SimpleBarCard] Row ${index}: Setting --icon-color-dark =`, state.iconColorDark);
+        this._debugLog(`Row ${index}: Setting --icon-color-dark =`, state.iconColorDark);
         rowEls.root.style.setProperty('--icon-color-dark', state.iconColorDark);
       } else {
-        console.log(`[SimpleBarCard] Row ${index}: Removing --icon-color-dark`);
+        this._debugLog(`Row ${index}: Removing --icon-color-dark`);
         rowEls.root.style.removeProperty('--icon-color-dark');
       }
       last.iconColor = state.iconColor;
@@ -950,36 +1001,36 @@ class SimpleBarCard extends HTMLElement {
   // automatically inherit currentColor.
   _applyInnerSvgColor(iconEl, color) {
     if (!iconEl) {
-      console.log('[SimpleBarCard] _applyInnerSvgColor: iconEl is null');
+      this._debugLog('_applyInnerSvgColor: iconEl is null');
       return;
     }
     try {
-      console.log('[SimpleBarCard] _applyInnerSvgColor called with color:', color);
+      this._debugLog('_applyInnerSvgColor called with color:', color);
       // ha-icon -> shadowRoot -> ha-svg-icon -> shadowRoot -> svg
       const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
-      console.log('[SimpleBarCard] haSvg found:', !!haSvg);
+      this._debugLog('haSvg found:', !!haSvg);
       const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
-      console.log('[SimpleBarCard] svg found:', !!svg);
+      this._debugLog('svg found:', !!svg);
       if (!svg) {
-        console.warn('[SimpleBarCard] SVG not found in shadow DOM');
+        this._debugWarn('SVG not found in shadow DOM');
         return;
       }
       // Compute a concrete color value if needed
       const fillVal = color || window.getComputedStyle(iconEl).color || null;
-      console.log('[SimpleBarCard] Final fillVal:', fillVal);
+      this._debugLog('Final fillVal:', fillVal);
       if (!fillVal) {
-        console.warn('[SimpleBarCard] No fillVal to apply');
+        this._debugWarn('No fillVal to apply');
         return;
       }
       // Set fill on ALL child elements of the SVG
       const paths = svg.querySelectorAll('*');
-      console.log('[SimpleBarCard] Found', paths.length, 'SVG elements to color');
+      this._debugLog('Found', paths.length, 'SVG elements to color');
       // Also set fill directly on the SVG itself
       svg.setAttribute('fill', fillVal);
       paths.forEach((p, idx) => {
         try { 
           p.setAttribute('fill', fillVal);
-          console.log(`[SimpleBarCard] Set fill on element ${idx}:`, fillVal);
+          this._debugLog(`Set fill on element ${idx}:`, fillVal);
         } catch (e) {
           console.error(`[SimpleBarCard] Error setting fill on element ${idx}:`, e);
         }
