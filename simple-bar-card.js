@@ -42,9 +42,14 @@ class SimpleBarCard extends HTMLElement {
    * Lifecycle
    ***************************/
   connectedCallback() {
+    console.log('[SimpleBarCard] connectedCallback: Setting up dark mode listener');
     // Set up dark mode listener to update SVG colors when theme changes
     this._darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    this._darkModeListener = () => this._updateAllIconColors();
+    console.log('[SimpleBarCard] Current dark mode:', this._darkModeQuery.matches);
+    this._darkModeListener = () => {
+      console.log('[SimpleBarCard] Dark mode changed! New value:', this._darkModeQuery.matches);
+      this._updateAllIconColors();
+    };
     this._darkModeQuery.addEventListener('change', this._darkModeListener);
   }
 
@@ -59,24 +64,42 @@ class SimpleBarCard extends HTMLElement {
 
   _updateAllIconColors() {
     // Force update of SVG colors for all icon elements when theme changes
+    console.log('[SimpleBarCard] _updateAllIconColors called');
     try {
       requestAnimationFrame(() => {
+        console.log('[SimpleBarCard] rAF executing for icon color update');
         // Update single-card icon (if exists)
         if (this._iconEl) {
-          const desired = window.getComputedStyle(this._iconEl).color;
+          const computed = window.getComputedStyle(this._iconEl);
+          const desired = computed.color;
+          console.log('[SimpleBarCard] Single-card icon computed color:', desired);
+          console.log('[SimpleBarCard] Single-card icon CSS variables:', {
+            iconColor: computed.getPropertyValue('--icon-color'),
+            iconColorDark: computed.getPropertyValue('--icon-color-dark')
+          });
           this._applyInnerSvgColor(this._iconEl, desired);
         }
         // Update all multi-entity row icons
         if (this._rowEls) {
-          for (const rowEl of this._rowEls) {
+          console.log('[SimpleBarCard] Updating', this._rowEls.length, 'row icons');
+          for (let i = 0; i < this._rowEls.length; i++) {
+            const rowEl = this._rowEls[i];
             if (rowEl.iconEl) {
-              const desired = window.getComputedStyle(rowEl.iconEl).color;
+              const computed = window.getComputedStyle(rowEl.iconEl);
+              const desired = computed.color;
+              console.log(`[SimpleBarCard] Row ${i} icon computed color:`, desired);
+              console.log(`[SimpleBarCard] Row ${i} icon CSS variables:`, {
+                iconColor: computed.getPropertyValue('--icon-color'),
+                iconColorDark: computed.getPropertyValue('--icon-color-dark')
+              });
               this._applyInnerSvgColor(rowEl.iconEl, desired);
             }
           }
         }
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('[SimpleBarCard] Error in _updateAllIconColors:', e);
+    }
   }
 
   /***************************
@@ -401,6 +424,7 @@ class SimpleBarCard extends HTMLElement {
     // Apply only explicitly provided config-controlled CSS variables.
     const setIf = (prop, val) => {
       if (val !== undefined && val !== null && val !== '') {
+        console.log(`[SimpleBarCard] setConfig: Setting ${prop} = ${val}`);
         try {
           this.style.setProperty(prop, val);
         } catch (e) {}
@@ -564,6 +588,7 @@ class SimpleBarCard extends HTMLElement {
       }
       const iconColor = (per.icon_color !== undefined) ? per.icon_color : undefined;
       const iconColorDark = (per.icon_color_dark !== undefined) ? per.icon_color_dark : undefined;
+      console.log(`[SimpleBarCard] Entity ${i} (${per.entity}): icon_color=${iconColor}, icon_color_dark=${iconColorDark}`);
       // Mode handling
       if (per.bipolar) {
         const min = Number(per.min);
@@ -795,14 +820,19 @@ class SimpleBarCard extends HTMLElement {
     }
     // apply per-row icon color via CSS variables (row-root)
     if (state.iconColor !== last.iconColor || state.iconColorDark !== last.iconColorDark) {
+      console.log(`[SimpleBarCard] Row ${index}: Per-entity colors changed:`, state.iconColor, state.iconColorDark);
       if (state.iconColor !== undefined && state.iconColor !== null && state.iconColor !== '') {
+        console.log(`[SimpleBarCard] Row ${index}: Setting --icon-color =`, state.iconColor);
         rowEls.root.style.setProperty('--icon-color', state.iconColor);
       } else {
+        console.log(`[SimpleBarCard] Row ${index}: Removing --icon-color`);
         rowEls.root.style.removeProperty('--icon-color');
       }
       if (state.iconColorDark !== undefined && state.iconColorDark !== null && state.iconColorDark !== '') {
+        console.log(`[SimpleBarCard] Row ${index}: Setting --icon-color-dark =`, state.iconColorDark);
         rowEls.root.style.setProperty('--icon-color-dark', state.iconColorDark);
       } else {
+        console.log(`[SimpleBarCard] Row ${index}: Removing --icon-color-dark`);
         rowEls.root.style.removeProperty('--icon-color-dark');
       }
       last.iconColor = state.iconColor;
@@ -888,22 +918,41 @@ class SimpleBarCard extends HTMLElement {
   // icon implementations render the <svg> inside a shadow DOM and do not
   // automatically inherit currentColor.
   _applyInnerSvgColor(iconEl, color) {
-    if (!iconEl) return;
+    if (!iconEl) {
+      console.log('[SimpleBarCard] _applyInnerSvgColor: iconEl is null');
+      return;
+    }
     try {
+      console.log('[SimpleBarCard] _applyInnerSvgColor called with color:', color);
       // ha-icon -> shadowRoot -> ha-svg-icon -> shadowRoot -> svg
       const haSvg = iconEl.shadowRoot && iconEl.shadowRoot.querySelector('ha-svg-icon');
+      console.log('[SimpleBarCard] haSvg found:', !!haSvg);
       const svg = haSvg && haSvg.shadowRoot && haSvg.shadowRoot.querySelector('svg');
-      if (!svg) return;
+      console.log('[SimpleBarCard] svg found:', !!svg);
+      if (!svg) {
+        console.warn('[SimpleBarCard] SVG not found in shadow DOM');
+        return;
+      }
       // Compute a concrete color value if needed
       const fillVal = color || window.getComputedStyle(iconEl).color || null;
-      if (!fillVal) return;
+      console.log('[SimpleBarCard] Final fillVal:', fillVal);
+      if (!fillVal) {
+        console.warn('[SimpleBarCard] No fillVal to apply');
+        return;
+      }
       // Set fill on path elements (safe and effective)
       const paths = svg.querySelectorAll('path, circle, rect, polygon');
-      paths.forEach(p => {
-        try { p.setAttribute('fill', fillVal); } catch (e) {}
+      console.log('[SimpleBarCard] Found', paths.length, 'SVG elements to color');
+      paths.forEach((p, idx) => {
+        try { 
+          p.setAttribute('fill', fillVal);
+          console.log(`[SimpleBarCard] Set fill on element ${idx}:`, fillVal);
+        } catch (e) {
+          console.error(`[SimpleBarCard] Error setting fill on element ${idx}:`, e);
+        }
       });
     } catch (e) {
-      // best-effort only
+      console.error('[SimpleBarCard] Error in _applyInnerSvgColor:', e);
     }
   }
 
