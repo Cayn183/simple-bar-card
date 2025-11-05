@@ -105,6 +105,25 @@ class SimpleBarCard extends HTMLElement {
               }
               
               this._applyInnerSvgColor(rowEl.iconEl, desired);
+              
+              // Also update icon-circle background color
+              if (rowEl.iconCircleEl) {
+                const circleComputed = window.getComputedStyle(rowEl.iconCircleEl);
+                let iconBgColorVar = circleComputed.getPropertyValue('--icon-bg-color').trim();
+                let iconBgColorDarkVar = circleComputed.getPropertyValue('--icon-bg-color-dark').trim();
+                console.log(`[SimpleBarCard] Row ${i} icon-circle CSS vars:`, {iconBgColorVar, iconBgColorDarkVar, isDarkMode});
+                
+                // Choose the appropriate background color based on dark mode
+                let desiredBg = isDarkMode && iconBgColorDarkVar ? iconBgColorDarkVar : iconBgColorVar;
+                
+                if (desiredBg) {
+                  console.log(`[SimpleBarCard] Row ${i} setting icon-circle background:`, desiredBg);
+                  rowEl.iconCircleEl.style.backgroundColor = desiredBg;
+                } else {
+                  console.log(`[SimpleBarCard] Row ${i} removing icon-circle inline background`);
+                  rowEl.iconCircleEl.style.removeProperty('background-color');
+                }
+              }
             }
           }
         }
