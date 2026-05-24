@@ -14,6 +14,7 @@ class SimpleBarCard extends HTMLElement {
     this._valueEl = null;
     this._iconEl = null;
     this._iconCircleEl = null;
+    this._errorBannerEl = null;
     // Last known state for change detection
     this._lastState = {
       rawValue: undefined,
@@ -371,6 +372,7 @@ class SimpleBarCard extends HTMLElement {
       ${this._commonStyles()}
       <div class="container">
         <div class="heading" style="display:none"></div>
+        <div class="error-banner" style="display:none;color:#c00;font-weight:600;padding:8px;"></div>
         <div class="entities">
           <!-- up to 5 entity rows; visibility controlled dynamically -->
           <div class="entity-row">
@@ -407,6 +409,7 @@ class SimpleBarCard extends HTMLElement {
     // Cache refs
     this._containerEl = this.shadowRoot.querySelector('.container');
     this._headingEl = this.shadowRoot.querySelector('.heading');
+    this._errorBannerEl = this.shadowRoot.querySelector('.error-banner');
     // Per-row cached refs (support up to 5 rows)
     this._rowEls = [];
     const rows = this.shadowRoot.querySelectorAll('.entity-row');
@@ -720,6 +723,8 @@ class SimpleBarCard extends HTMLElement {
   _render() {
     // Preconditions
     if (!this._config || !this._hass) return;
+    // Clear any previous non-fatal error banner before rendering
+    try { this._clearError(); } catch (e) {}
     // For each configured entity, compute its display state and schedule an update for that row
     for (let i = 0; i < this._entities.length; i++) {
       const per = this._entities[i];
@@ -727,6 +732,7 @@ class SimpleBarCard extends HTMLElement {
       if (!stateObj) {
         this._debugWarn('_render: Entity not found:', per.entity);
         this._renderError(`Entity nicht gefunden: ${per.entity}`);
+        // don't destructively replace the DOM; stop processing further rows
         return;
       }
       const rawValue = Number(stateObj.state);
@@ -750,8 +756,18 @@ class SimpleBarCard extends HTMLElement {
   this._logInfo(`entity.${i}.icon_colors`, { entity: per.entity, icon_color: iconColor, icon_color_dark: iconColorDark });
       // Mode handling
       if (per.bipolar) {
-        const min = Number(per.min);
-        const max = Number(per.max);
+        // Sanitize min/max values (fall back to global config if per values invalid)
+        let min = Number(per.min);
+        let max = Number(per.max);
+        if (!isFinite(min)) min = Number(this._config.min);
+        if (!isFinite(max)) max = Number(this._config.max);
+        // Ensure numeric and sensible defaults
+        if (!isFinite(min)) min = 0;
+        if (!isFinite(max)) max = min + 100;
+        // If min > max, swap to avoid negative ranges
+        if (min > max) {
+          const tmp = min; min = max; max = tmp;
+        }
         const clampedValue = Math.min(Math.max(rawValue, min), max);
         const mode = per.bipolar_mode || 'per_side';
         let negScale = 0, posScale = 0;
@@ -837,10 +853,19 @@ class SimpleBarCard extends HTMLElement {
   }
 
   _calculatePercentWithConfig(value, cfg) {
-    const min = Number(cfg.min ?? this._config.min);
-    const max = Number(cfg.max ?? this._config.max);
+    // Coerce min/max to finite numbers and protect against inverted ranges
+    let min = Number((cfg && cfg.min) ?? this._config.min);
+    let max = Number((cfg && cfg.max) ?? this._config.max);
+    if (!isFinite(min)) min = Number(this._config.min);
+    if (!isFinite(max)) max = Number(this._config.max);
+    if (!isFinite(min)) min = 0;
+    if (!isFinite(max)) max = min + 100;
+    if (min > max) {
+      const tmp = min; min = max; max = tmp;
+    }
     if (max === min) return 0;
     let percent = ((value - min) / (max - min)) * 100;
+    if (!isFinite(percent)) return 0;
     return Math.min(Math.max(percent, 0), 100);
   }
 
@@ -1047,10 +1072,29 @@ class SimpleBarCard extends HTMLElement {
    * Hilfsmethoden & Utilities
    ***************************/
   _renderError(message) {
-    this.shadowRoot.innerHTML = `
-      ${this._commonStyles()}
-      <div style="padding:8px;color:#c00;font-weight:600;">${message}</div>
-    `;
+    // Non-destructive error rendering: show a persistent banner and hide entities
+    try {
+      if (this._errorBannerEl) {
+        this._errorBannerEl.textContent = message;
+        this._errorBannerEl.style.display = '';
+      }
+      const entities = this.shadowRoot.querySelector('.entities');
+      if (entities) entities.style.display = 'none';
+    } catch (e) {
+      // Fallback: if DOM missing, replace root as before to ensure message is visible
+      this.shadowRoot.innerHTML = `\n      ${this._commonStyles()}\n      <div style="padding:8px;color:#c00;font-weight:600;">${message}</div>\n    `;
+    }
+  }
+
+  _clearError() {
+    try {
+      if (this._errorBannerEl) {
+        this._errorBannerEl.textContent = '';
+        this._errorBannerEl.style.display = 'none';
+      }
+      const entities = this.shadowRoot.querySelector('.entities');
+      if (entities) entities.style.display = '';
+    } catch (e) {}
   }
 
   _calculatePercent(value) {
@@ -1140,7 +1184,9 @@ class SimpleBarCard extends HTMLElement {
   }
 
   _formatValue(value, stateObj, cfg) {
-    const decimals = ('decimals' in (cfg || this._config)) ? Number((cfg || this._config).decimals) : 0;
+    let decimals = ('decimals' in (cfg || this._config)) ? Number((cfg || this._config).decimals) : 0;
+    if (!isFinite(decimals)) decimals = 0;
+    decimals = Math.max(0, Math.min(6, Math.floor(decimals)));
     const unit = (cfg && cfg.unit) || this._config.unit || stateObj.attributes.unit_of_measurement || '';
     const formattedValue = Number(value).toFixed(decimals);
     return unit ? `${formattedValue} ${unit}` : formattedValue;
