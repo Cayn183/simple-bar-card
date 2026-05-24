@@ -382,6 +382,7 @@ class SimpleBarCard extends HTMLElement {
               </div>
             </div>
             <div class="main-container">
+              <div class="row-error" style="display:none;color:#c00;font-weight:600;padding:6px;">Nicht verfügbar</div>
               <div class="label"></div>
               <div class="bar-row">
                 <div class="bar-background">
@@ -425,6 +426,7 @@ class SimpleBarCard extends HTMLElement {
         root: row,
         iconEl: row.querySelector('ha-icon.bar-icon'),
         iconCircleEl: row.querySelector('.icon-circle'),
+        errorEl: row.querySelector('.row-error'),
         labelEl: row.querySelector('.label'),
         barBackgroundEl: row.querySelector('.bar-background'),
         barFillEl: row.querySelector('.bar-fill'),
@@ -731,16 +733,25 @@ class SimpleBarCard extends HTMLElement {
       const stateObj = this._hass.states[per.entity];
       if (!stateObj) {
         this._debugWarn('_render: Entity not found:', per.entity);
-        this._renderError(`Entity nicht gefunden: ${per.entity}`);
-        // don't destructively replace the DOM; stop processing further rows
-        return;
+        // show error only for this row
+        this._scheduleRowUpdate(i, { error: true, errorMessage: `Entity nicht gefunden: ${per.entity}` });
+        continue;
       }
-      const rawValue = Number(stateObj.state);
+      // Treat explicit unavailable/unreachable states as per-row errors
+      const stateRaw = stateObj.state;
+      if (typeof stateRaw === 'string' && stateRaw.toLowerCase() === 'unavailable') {
+        this._debugWarn('_render: Entity unavailable:', per.entity);
+        this._scheduleRowUpdate(i, { error: true, errorMessage: 'Nicht verfügbar' });
+        continue;
+      }
+      const rawValue = Number(stateRaw);
       if (isNaN(rawValue)) {
-        this._debugWarn('_render: Invalid numeric value for', per.entity, 'state=', stateObj.state);
-        this._renderError(`Ungültiger Wert: ${stateObj.state}`);
-        return;
+        this._debugWarn('_render: Invalid numeric value for', per.entity, 'state=', stateRaw);
+        this._scheduleRowUpdate(i, { error: true, errorMessage: `Ungültiger Wert: ${stateRaw}` });
+        continue;
       }
+      // clear any previous per-row error
+      this._scheduleRowUpdate(i, { error: false });
       const displayName = per.name || stateObj.attributes.friendly_name || per.entity;
       const formattedValueWithUnit = this._formatValue(rawValue, stateObj, per);
       const fillColor = this._getColorForValue(rawValue, per) || per.bar_fill_color || '#3b82f6';
@@ -980,6 +991,26 @@ class SimpleBarCard extends HTMLElement {
     if (!state) return;
     const rowEls = this._rowEls[index];
     const last = this._lastStateRows[index] || {};
+    // Per-row error handling: show/hide error banner and hide bar/value when error
+    if (state.error !== undefined && state.error !== last.error) {
+        if (state.error) {
+        if (rowEls.errorEl) {
+          rowEls.errorEl.textContent = state.errorMessage || 'Fehler';
+          rowEls.errorEl.style.display = '';
+        }
+        if (rowEls.barBackgroundEl) rowEls.barBackgroundEl.style.display = 'none';
+        if (rowEls.valueEl) rowEls.valueEl.style.display = 'none';
+      } else {
+        if (rowEls.errorEl) {
+          rowEls.errorEl.textContent = '';
+          rowEls.errorEl.style.display = 'none';
+        }
+        if (rowEls.barBackgroundEl) rowEls.barBackgroundEl.style.display = '';
+        if (rowEls.valueEl) rowEls.valueEl.style.display = '';
+      }
+      last.error = state.error;
+      last.errorMessage = state.errorMessage;
+    }
     // Mode switch
     if (state.modeBipolar !== last.modeBipolar) {
   this._logInfo(`row.${index}.mode_change`, { from: last.modeBipolar, to: state.modeBipolar });

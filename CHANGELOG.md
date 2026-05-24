@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Entries are listed in r
 
 ## [v0.2.1-beta] - 2025-11-05
 
+## [v0.2.2-beta] - 2026-05-24
+
+Summary
+- Bugfix-Release mit Fokus auf robuster Fehlerbehandlung pro Entity und sicherer Numerik-Verarbeitung. Verhindert, dass die ganze Karte wegen eines einzelnen ungültigen Wertes verschwindet.
+
+Highlights
+- Fixed: Per-row Fehlerbanner statt kompletter DOM-Ersetzung
+	- Fehler wie `unavailable`, fehlende Entities oder nicht-numerische States zeigen jetzt nur die betroffene Zeile an, die Bar und der Wert werden für diese Zeile ausgeblendet.
+	- Die restlichen Zeilen bleiben sichtbar und funktionsfähig.
+- Fixed: Handling von `unavailable`-States
+	- Wenn eine Entity den State `unavailable` meldet, wird der entsprechende Balken mit dem Text `unavailable` versehen (Banner), anstatt die ganze Karte ungültig zu machen.
+- Improved: Robuste Numerik-Validierung
+	- Min/Max-Werte werden auf Gültigkeit geprüft, bei Bedarf geswappt und sinnvoll geclamped.
+	- Prozentberechnung schützt vor NaN/Infinity und liefert sichere Defaults.
+	- Dezimalstellen (`decimals`) werden auf gültige Werte begrenzt bevor `toFixed` angewendet wird.
+- Misc: Nicht-destruktive Fehleranzeige
+	- Globale Fehler bleiben via Fehlerbanner möglich; `_renderError` ersetzt nicht mehr die `shadowRoot`, um gecachte DOM-Referenzen zu erhalten.
+
+Notes
+- Änderungen sind in `simple-bar-card.js` enthalten. Kompatibilität und Single-file-Auslieferung bleiben erhalten; kein Build-Schritt erforderlich.
+- Bitte in der Live-Umgebung testen: Szenarien mit `unavailable`, fehlenden Entities und nicht-numerischen States.
+
+
 Summary
 - Beta release containing important bug fixes and robustness improvements for icon coloring and icon backgrounds. Resolves cases where `icon_color_dark` and `icon_background_color_dark` were not applied correctly in dark mode. Adds enhanced debug output to facilitate troubleshooting in the browser DevTools.
 
